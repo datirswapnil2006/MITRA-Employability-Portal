@@ -3,15 +3,18 @@ import { useParams, useNavigate } from "react-router-dom";
 import { startAttempt, saveAnswer, runSample, submitAttempt } from "../api/tests";
 import useProctoring from "../hooks/useProctoring";
 
-const LANGUAGE_LABEL = { java: "Java", python: "Python", cpp: "C++" };
+// Modern Test Components
+import TestHeader from "../components/test/TestHeader";
+import QuestionPalette from "../components/test/QuestionPalette";
+import QuestionCard from "../components/test/QuestionCard";
+import SubmitConfirmModal from "../components/test/SubmitConfirmModal";
+import { ArrowLeft, ArrowRight, ShieldAlert, CheckCircle2 } from "lucide-react";
 
 const STARTER = {
   python: "# write your solution here\n",
   java: "// write your solution here\npublic class Main {\n    public static void main(String[] args) {\n\n    }\n}\n",
   cpp: "// write your solution here\n#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n\n    return 0;\n}\n",
 };
-
-const ghostBtn = "border-[1.5px] border-line rounded px-4 py-2 font-semibold text-[13px] text-ink hover:border-accent transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
 
 export default function AttemptPage() {
   const { testId } = useParams();
@@ -23,17 +26,19 @@ export default function AttemptPage() {
   const [test, setTest] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({}); // questionId -> { selectedOptionIndex, code, language }
+  const [markedForReview, setMarkedForReview] = useState({}); // questionId -> boolean
   const [current, setCurrent] = useState(0);
   const [remainingSec, setRemainingSec] = useState(0);
-  const [sampleResults, setSampleResults] = useState({}); // questionId -> results
+  const [sampleResults, setSampleResults] = useState({});
   const [running, setRunning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [terminated, setTerminated] = useState(null); // { reason, totalScore, maxScore } | null
+  const [terminated, setTerminated] = useState(null);
+  const [fontSize, setFontSize] = useState("base");
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
 
   const saveTimers = useRef({});
 
-  // Proctoring only activates once we have a real attemptId (i.e. the test
-  // has actually started) and stops the moment the page unmounts or submits.
+  // Proctoring active during attempt
   useProctoring(attemptId, {
     enabled: !loading && !error && !submitting && !terminated,
     onAutoSubmit: (result) => setTerminated(result),
@@ -48,11 +53,11 @@ export default function AttemptPage() {
 
         const map = {};
         data.questions.forEach((q) => {
-          const existing = data.existingAnswers.find((a) => a.question === q._id);
+          const existing = data.existingAnswers?.find((a) => String(a.question) === String(q._id));
           map[q._id] = {
             selectedOptionIndex: existing?.selectedOptionIndex ?? null,
-            code: existing?.code || STARTER[q.languages?.[0]] || "",
-            language: existing?.language || q.languages?.[0] || null,
+            code: existing?.code || STARTER[q.languages?.[0] || "python"] || "",
+            language: existing?.language || q.languages?.[0] || "python",
           };
         });
         setAnswers(map);
@@ -76,14 +81,14 @@ export default function AttemptPage() {
     }
   }, [attemptId, submitting, navigate]);
 
-  // Countdown timer, auto-submits at zero
+  // Countdown timer auto-submits at 0
   useEffect(() => {
     if (loading || error || terminated) return;
     if (remainingSec <= 0) {
       handleSubmit();
       return;
     }
-    const t = setTimeout(() => setRemainingSec((s) => s - 1), 1000);
+    const t = setTimeout(() => setRemainingSec((s) => Math.max(0, s - 1)), 1000);
     return () => clearTimeout(t);
   }, [remainingSec, loading, error, terminated, handleSubmit]);
 
@@ -100,42 +105,69 @@ export default function AttemptPage() {
     setRunning(true);
     try {
       const { results } = await runSample(attemptId, question._id, {
-        code: answers[question._id].code,
-        language: answers[question._id].language,
+        code: answers[question._id]?.code,
+        language: answers[question._id]?.language,
       });
       setSampleResults((prev) => ({ ...prev, [question._id]: results }));
     } catch (e) {
-      alert(e.response?.data?.message || "Could not run code");
+      alert(e.response?.data?.message || "Could not run code execution");
     } finally {
       setRunning(false);
     }
   };
 
-  if (loading) return <div className="p-16 text-on-desk">Loading test…</div>;
-  if (error) return <div className="p-16 text-on-desk">{error}</div>;
+  const toggleReview = (questionId) => {
+    setMarkedForReview((prev) => ({
+      ...prev,
+      [questionId]: !prev[questionId],
+    }));
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6">
+        <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4" />
+        <div className="text-sm font-mono text-slate-400">Initializing Proctored Test Environment…</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+        <div className="max-w-md text-center bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl">
+          <ShieldAlert size={40} className="text-rose-500 mx-auto mb-4" />
+          <div className="text-lg font-bold mb-2">{error}</div>
+          <button
+            onClick={() => navigate("/student")}
+            className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-5 py-2.5 text-xs font-bold transition-colors"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (terminated) {
     return (
-      <div className="min-h-screen bg-desk text-on-desk flex items-center justify-center p-8">
-        <div className="max-w-lg text-center">
-          <div className="font-mono text-[11px] tracking-widest uppercase text-danger mb-4">
-            Test Integrity Violation
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+        <div className="max-w-lg text-center bg-slate-900 border border-slate-800 p-8 sm:p-10 rounded-3xl shadow-2xl relative overflow-hidden">
+          <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto mb-4">
+            <ShieldAlert size={32} />
           </div>
-          <h1 className="font-display text-3xl font-semibold mb-4">Your test has been submitted</h1>
-          <p className="text-on-desk-soft leading-relaxed mb-3">
-            This test was automatically submitted because our proctoring system detected repeated or
-            serious violations of test rules (such as leaving full-screen, switching tabs, attempting to
-            copy content, or multiple faces being visible on camera).
-          </p>
-          <p className="text-on-desk-soft text-sm mb-8">
-            This has been flagged for the placement cell's review. If you believe this was a mistake,
-            contact your placement cell with your ERP number and the time of this test.
+          <div className="font-mono text-xs font-bold uppercase tracking-widest text-rose-400 mb-2">
+            Test Integrity Flagged
+          </div>
+          <h1 className="font-display text-2xl font-bold mb-3">Test Automatically Submitted</h1>
+          <p className="text-slate-400 text-xs sm:text-sm leading-relaxed mb-6">
+            This attempt was submitted automatically due to repeated integrity violations detected by the proctoring engine (e.g. exiting fullscreen mode, switching windows, or face detection anomalies).
           </p>
           <button
-            className="bg-accent text-white rounded px-6 py-3 font-semibold text-sm hover:bg-accent-hover transition-colors"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 py-3 font-bold text-xs transition-all shadow-lg shadow-indigo-600/20"
             onClick={() => navigate(`/student/result/${attemptId}`, { state: terminated })}
           >
-            View my result
+            View Result Details
           </button>
         </div>
       </div>
@@ -143,194 +175,100 @@ export default function AttemptPage() {
   }
 
   const q = questions[current];
-  const ans = answers[q._id] || {};
-  const mm = String(Math.floor(remainingSec / 60)).padStart(2, "0");
-  const ss = String(remainingSec % 60).padStart(2, "0");
+  const ans = answers[q?._id] || {};
+  const answeredCount = questions.filter((qq) => {
+    const a = answers[qq._id];
+    return qq.type === "mcq"
+      ? a?.selectedOptionIndex !== null && a?.selectedOptionIndex !== undefined
+      : !!a?.code?.trim();
+  }).length;
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-56 shrink-0 bg-desk-raised p-4 flex flex-col gap-4">
-        <div className="font-display text-on-desk text-[15px] font-bold">{test.title}</div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      {/* Top Navigation Header */}
+      <TestHeader
+        title={test?.title}
+        mode="exam"
+        remainingSec={remainingSec}
+        totalQuestions={questions.length}
+        answeredCount={answeredCount}
+        fontSize={fontSize}
+        setFontSize={setFontSize}
+        isProctored={true}
+      />
 
-        <div
-          className={`font-mono text-[22px] font-semibold text-center rounded px-3 py-2.5 border ${
-            remainingSec < 60
-              ? "bg-danger/20 border-danger/45 text-red-300"
-              : "bg-accent/20 border-accent/40 text-on-desk"
-          }`}
-        >
-          {mm}:{ss}
-        </div>
+      {/* Main Workspace Layout */}
+      <div className="flex-1 flex flex-col lg:flex-row">
+        {/* Sidebar Question Palette Navigator */}
+        <QuestionPalette
+          questions={questions}
+          answers={answers}
+          markedForReview={markedForReview}
+          current={current}
+          onSelectQuestion={(idx) => setCurrent(idx)}
+          onSubmitClick={() => setShowSubmitModal(true)}
+          submitting={submitting}
+        />
 
-        <div className="flex flex-wrap gap-1.5">
-          {questions.map((qq, idx) => {
-            const a = answers[qq._id];
-            const answered = qq.type === "mcq" ? a?.selectedOptionIndex !== null && a?.selectedOptionIndex !== undefined : !!a?.code?.trim();
-            return (
+        {/* Question Display Workspace */}
+        <main className="flex-1 bg-slate-950 p-4 sm:p-8 overflow-y-auto">
+          <div className="max-w-4xl mx-auto space-y-6">
+            {/* Active Question Card */}
+            <QuestionCard
+              question={q}
+              questionIndex={current}
+              totalQuestions={questions.length}
+              answer={ans}
+              onSaveAnswer={(patch) => scheduleSave(q._id, patch)}
+              isMarkedForReview={!!markedForReview[q._id]}
+              onToggleReview={() => toggleReview(q._id)}
+              fontSize={fontSize}
+              isPracticeMode={false}
+              sampleResults={sampleResults[q._id]}
+              runningSample={running}
+              onRunSample={handleRunSample}
+            />
+
+            {/* Bottom Next / Prev Controls */}
+            <div className="flex items-center justify-between pt-6 border-t border-slate-800">
               <button
-                key={qq._id}
-                onClick={() => setCurrent(idx)}
-                className={`w-8 h-8 rounded-full font-mono text-xs border-[1.5px] transition-colors ${
-                  idx === current
-                    ? "border-accent text-on-desk"
-                    : answered
-                    ? "bg-success/30 border-transparent text-on-desk"
-                    : "border-white/15 text-on-desk-soft"
-                }`}
+                disabled={current === 0}
+                onClick={() => setCurrent((c) => Math.max(0, c - 1))}
+                className="bg-slate-900 border border-slate-800 hover:border-slate-700 px-5 py-3 rounded-2xl text-xs font-bold text-slate-300 disabled:opacity-30 transition-all flex items-center gap-2 shadow-sm"
               >
-                {idx + 1}
+                <ArrowLeft size={16} /> Previous Question
               </button>
-            );
-          })}
-        </div>
 
-        <button
-          className="bg-accent text-white rounded px-4.5 py-2.5 font-semibold text-[13.5px] hover:bg-accent-hover disabled:opacity-60 transition-colors"
-          onClick={() => {
-            if (window.confirm("Submit the test now? You cannot change answers after this.")) handleSubmit();
-          }}
-          disabled={submitting}
-        >
-          {submitting ? "Submitting…" : "Submit Test"}
-        </button>
-      </aside>
-
-      <main className="flex-1 bg-surface text-ink p-9 overflow-y-auto">
-        <div className="max-w-[760px]">
-          <div className="flex gap-3 mb-2.5 font-mono text-[11px] uppercase text-ink-soft">
-            <span>Q{current + 1} of {questions.length}</span>
-            <span>{q.type === "mcq" ? "Objective" : "Coding"}</span>
-            <span>{q.difficulty}</span>
-            <span>{q.marks} marks</span>
-          </div>
-          <p className="text-[17px] leading-relaxed mb-6 whitespace-pre-wrap">{q.questionText}</p>
-
-          {q.type === "mcq" && (
-            <div>
-              {q.options.map((opt, idx) => (
-                <label
-                  key={idx}
-                  className={`flex items-center gap-3 px-4 py-3.5 border-[1.5px] rounded mb-2.5 cursor-pointer bg-white transition-colors ${
-                    ans.selectedOptionIndex === idx ? "border-accent bg-accent/5" : "border-line hover:border-accent"
-                  }`}
+              {current < questions.length - 1 ? (
+                <button
+                  onClick={() => setCurrent((c) => Math.min(questions.length - 1, c + 1))}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20"
                 >
-                  <input
-                    type="radio"
-                    checked={ans.selectedOptionIndex === idx}
-                    onChange={() => scheduleSave(q._id, { selectedOptionIndex: idx })}
-                    className="w-4 h-4 accent-accent"
-                  />
-                  {opt}
-                </label>
-              ))}
-            </div>
-          )}
-
-          {q.type === "coding" && (
-            <div>
-              <div className="flex gap-2.5 mb-3">
-                {q.languages.map((lang) => (
-                  <button
-                    key={lang}
-                    onClick={() => scheduleSave(q._id, { language: lang, code: ans.code?.trim() ? ans.code : STARTER[lang] })}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border-[1.5px] transition-colors ${
-                      ans.language === lang ? "border-accent text-ink bg-accent/5" : "border-line text-ink-soft"
-                    }`}
-                  >
-                    {LANGUAGE_LABEL[lang]}
-                  </button>
-                ))}
-              </div>
-
-              {q.sampleTestCases?.map((tc, idx) => (
-                <div key={idx} className="bg-white border border-line rounded px-3.5 py-3 mb-2 font-mono text-[12.5px]">
-                  <strong>Sample {idx + 1}</strong><br />
-                  Input: {tc.input || "(none)"}<br />
-                  Expected output: {tc.output}
-                </div>
-              ))}
-
-              <textarea
-                value={ans.code || ""}
-                onChange={(e) => scheduleSave(q._id, { code: e.target.value })}
-                spellCheck={false}
-                className="w-full min-h-[260px] font-mono text-[13px] bg-desk text-on-desk border-none rounded p-4 leading-relaxed resize-y"
-              />
-
-              <div className="mt-2.5">
-                <button className={ghostBtn} onClick={() => handleRunSample(q)} disabled={running}>
-                  {running ? "Running…" : "Run against sample cases"}
+                  Save & Next <ArrowRight size={16} />
                 </button>
-              </div>
-
-              {sampleResults[q._id] && (
-                <div className="mt-3">
-                  {sampleResults[q._id].map((r, idx) => {
-                    const label = {
-                      passed: "Passed",
-                      compile_error: "Compilation Error",
-                      runtime_error: "Runtime Error",
-                      timeout: "Time Limit Exceeded",
-                      wrong_answer: "Wrong Answer",
-                    }[r.outcome || (r.passed ? "passed" : "wrong_answer")];
-
-                    return (
-                      <div
-                        key={idx}
-                        className={`rounded mb-2.5 overflow-hidden border ${
-                          r.passed ? "border-success/30 bg-success/5" : "border-danger/30 bg-danger/5"
-                        }`}
-                      >
-                        <div
-                          className={`px-3.5 py-2 font-mono text-[12px] font-semibold uppercase tracking-wide ${
-                            r.passed ? "text-success" : "text-danger"
-                          }`}
-                        >
-                          Sample {idx + 1} — {label}
-                        </div>
-
-                        {!r.passed && (
-                          <div className="px-3.5 pb-3 space-y-2 text-[12.5px] font-mono">
-                            {(r.outcome === "compile_error" || r.outcome === "runtime_error" || r.outcome === "timeout") && r.stderr ? (
-                              // Syntax/runtime errors: show the compiler's own message verbatim,
-                              // in a monospace block — that's the most useful thing a student can see.
-                              <div>
-                                <div className="text-ink-soft mb-1">Compiler output:</div>
-                                <pre className="whitespace-pre-wrap bg-desk text-red-300 rounded p-2.5 overflow-x-auto">{r.stderr}</pre>
-                              </div>
-                            ) : (
-                              // Wrong answer: show expected vs actual side by side instead of the raw error.
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <div className="text-ink-soft mb-1">Expected:</div>
-                                  <pre className="whitespace-pre-wrap bg-white border border-line rounded p-2.5 overflow-x-auto">{r.expected || "(empty)"}</pre>
-                                </div>
-                                <div>
-                                  <div className="text-ink-soft mb-1">Got:</div>
-                                  <pre className="whitespace-pre-wrap bg-white border border-line rounded p-2.5 overflow-x-auto">{r.stdout || "(empty)"}</pre>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+              ) : (
+                <button
+                  onClick={() => setShowSubmitModal(true)}
+                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-6 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20"
+                >
+                  Review & Submit <CheckCircle2 size={16} />
+                </button>
               )}
             </div>
-          )}
-
-          <div className="flex justify-between mt-7 max-w-[760px]">
-            <button className={ghostBtn} disabled={current === 0} onClick={() => setCurrent((c) => c - 1)}>
-              ← Previous
-            </button>
-            <button className={ghostBtn} disabled={current === questions.length - 1} onClick={() => setCurrent((c) => c + 1)}>
-              Next →
-            </button>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
+
+      {/* Confirmation Modal before Submit */}
+      <SubmitConfirmModal
+        isOpen={showSubmitModal}
+        onClose={() => setShowSubmitModal(false)}
+        onConfirm={handleSubmit}
+        questions={questions}
+        answers={answers}
+        markedForReview={markedForReview}
+        submitting={submitting}
+      />
     </div>
   );
 }
