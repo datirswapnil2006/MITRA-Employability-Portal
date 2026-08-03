@@ -27,7 +27,7 @@ export const registerStudent = async (req, res) => {
       erpNumber,
       name,
       email,
-      gender,
+      gender: gender || undefined,
       branch,
       year,
       section,

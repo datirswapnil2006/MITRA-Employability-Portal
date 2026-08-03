@@ -71,7 +71,9 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await register(form);
+      const payload = { ...form };
+      if (!payload.gender) delete payload.gender;
+      await register(payload);
       setSubmitted(true);
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed. Check your ERP number and email.");
