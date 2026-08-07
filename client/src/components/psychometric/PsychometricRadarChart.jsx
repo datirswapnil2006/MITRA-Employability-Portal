@@ -13,12 +13,12 @@ export default function PsychometricRadarChart({ data = [], size = 340 }) {
     );
   }
 
-  // SVG ViewBox dimensions: 440 wide, 350 high to allow perimeter text labels to fit cleanly
-  const viewBoxWidth = 440;
+  // SVG ViewBox dimensions: 520 wide, 350 high to allow long perimeter text labels to fit comfortably without clipping
+  const viewBoxWidth = 520;
   const viewBoxHeight = 350;
   const cx = viewBoxWidth / 2;
   const cy = viewBoxHeight / 2;
-  const radius = 95; // Radius of 100% outer ring
+  const radius = 88; // Radius of 100% outer ring
   const total = data.length;
   const angleStep = (Math.PI * 2) / total;
 
@@ -42,7 +42,7 @@ export default function PsychometricRadarChart({ data = [], size = 340 }) {
     <div className="w-full flex flex-col items-center justify-center overflow-hidden">
       <svg
         viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
-        className="w-full h-auto max-w-[420px] max-h-[340px] font-body select-none"
+        className="w-full h-auto max-w-[480px] max-h-[350px] font-body select-none"
       >
         <defs>
           <linearGradient id="radarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -110,7 +110,7 @@ export default function PsychometricRadarChart({ data = [], size = 340 }) {
 
         {/* Trait Labels around perimeter */}
         {data.map((d, i) => {
-          const labelPt = getCoordinates(i, 122); // Offset outside outer ring
+          const labelPt = getCoordinates(i, 116); // Offset outside outer ring
           let textAnchor = "middle";
           if (labelPt.x > cx + 15) textAnchor = "start";
           else if (labelPt.x < cx - 15) textAnchor = "end";
@@ -122,7 +122,7 @@ export default function PsychometricRadarChart({ data = [], size = 340 }) {
               y={labelPt.y}
               textAnchor={textAnchor}
               dominantBaseline="middle"
-              className="text-[10.5px] font-semibold fill-slate-700 dark:fill-slate-200 font-sans"
+              className="text-[10px] font-semibold fill-slate-700 dark:fill-slate-200 font-sans"
             >
               {d.name} ({d.percentage}%)
             </text>
