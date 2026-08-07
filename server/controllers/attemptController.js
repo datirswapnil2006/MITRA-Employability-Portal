@@ -60,7 +60,13 @@ export const startAttempt = async (req, res) => {
     res.json({
       attemptId: attempt._id,
       endsAt: attempt.endsAt,
-      test: { _id: test._id, title: test.title, category: test.category, durationMinutes: test.durationMinutes },
+      test: {
+        _id: test._id,
+        title: test.title,
+        category: test.category,
+        durationMinutes: test.durationMinutes,
+        navigationPolicySettings: test.navigationPolicySettings,
+      },
       questions: questions.map(sanitizeQuestion),
       existingAnswers: attempt.answers.map((a) => ({
         question: a.question,
@@ -211,12 +217,20 @@ export const submitAttempt = async (req, res) => {
     const attempt = await getOwnedActiveAttempt(req, res);
     if (!attempt) return;
 
+    const { exitReason, violationCount, auditLogs } = req.body || {};
+    if (exitReason) attempt.exitReason = exitReason;
+    if (typeof violationCount === "number") attempt.violationCount = violationCount;
+    if (Array.isArray(auditLogs) && auditLogs.length > 0) {
+      attempt.auditLogs.push(...auditLogs);
+    }
+
     await gradeAttempt(attempt);
 
     res.json({
       totalScore: attempt.totalScore,
       maxScore: attempt.maxScore,
       submittedAt: attempt.submittedAt,
+      exitReason: attempt.exitReason,
     });
   } catch (err) {
     res.status(500).json({ message: "Failed to submit test", error: err.message });

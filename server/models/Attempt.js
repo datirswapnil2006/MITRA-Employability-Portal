@@ -39,10 +39,20 @@ const attemptSchema = new mongoose.Schema(
     maxScore: { type: Number, default: 0 },
     submittedAt: { type: Date, default: null },
 
-    // Proctoring / auto-submit
+    // Proctoring / auto-submit & Exit Navigation Policy Audit Logs
     autoSubmitted: { type: Boolean, default: false },
     flagged: { type: Boolean, default: false },
     flagReason: { type: String, default: "" },
+
+    exitReason: { type: String, default: "Manual Submission" },
+    violationCount: { type: Number, default: 0 },
+    auditLogs: [
+      {
+        action: { type: String, required: true },
+        details: { type: String, default: "" },
+        timestamp: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
 );

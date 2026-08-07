@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { startAttempt, saveAnswer, runSample, submitAttempt } from "../api/tests";
 import useProctoring from "../hooks/useProctoring";
+import useAssessmentBehavior from "../hooks/useAssessmentBehavior";
+import AssessmentExitConfirmModal from "../components/test/AssessmentExitConfirmModal";
 
 // Modern Test Components
 import TestHeader from "../components/test/TestHeader";
@@ -44,6 +46,48 @@ export default function AttemptPage() {
     onAutoSubmit: (result) => setTerminated(result),
   });
 
+  const handleSubmit = useCallback(async (exitReason = "Manual Submission") => {
+    if (!attemptId || submitting) return;
+    setSubmitting(true);
+    try {
+      const result = await submitAttempt(attemptId, { exitReason });
+      navigate(`/student/result/${attemptId}`, { state: result });
+    } catch (e) {
+      alert(e.response?.data?.message || "Could not submit test");
+      setSubmitting(false);
+    }
+  }, [attemptId, submitting, navigate]);
+
+  const handleAutoSubmitWithReason = useCallback(async (exitReason, auditLogs, violationCount) => {
+    if (!attemptId || submitting) return;
+    setSubmitting(true);
+    try {
+      const result = await submitAttempt(attemptId, { exitReason, auditLogs, violationCount });
+      navigate(`/student/result/${attemptId}`, { state: result });
+    } catch (e) {
+      alert(e.response?.data?.message || "Could not submit test");
+      setSubmitting(false);
+    }
+  }, [attemptId, submitting, navigate]);
+
+  const {
+    showExitModal,
+    modalConfig,
+    handleContinueAssessment,
+    handleConfirmLeaveAssessment,
+  } = useAssessmentBehavior({
+    attemptId,
+    settings: test?.navigationPolicySettings,
+    enabled: !loading && !error && !submitting && !terminated,
+    onSaveAnswers: async () => {
+      const q = questions[current];
+      if (q && answers[q._id]) {
+        await saveAnswer(attemptId, q._id, answers[q._id]).catch(() => {});
+      }
+    },
+    onSubmitAssessment: handleAutoSubmitWithReason,
+  });
+
   useEffect(() => {
     startAttempt(testId)
       .then((data) => {
@@ -69,23 +113,11 @@ export default function AttemptPage() {
       .finally(() => setLoading(false));
   }, [testId]);
 
-  const handleSubmit = useCallback(async () => {
-    if (!attemptId || submitting) return;
-    setSubmitting(true);
-    try {
-      const result = await submitAttempt(attemptId);
-      navigate(`/student/result/${attemptId}`, { state: result });
-    } catch (e) {
-      alert(e.response?.data?.message || "Could not submit test");
-      setSubmitting(false);
-    }
-  }, [attemptId, submitting, navigate]);
-
   // Countdown timer auto-submits at 0
   useEffect(() => {
     if (loading || error || terminated) return;
     if (remainingSec <= 0) {
-      handleSubmit();
+      handleSubmit("Time Expired");
       return;
     }
     const t = setTimeout(() => setRemainingSec((s) => Math.max(0, s - 1)), 1000);
@@ -263,11 +295,21 @@ export default function AttemptPage() {
       <SubmitConfirmModal
         isOpen={showSubmitModal}
         onClose={() => setShowSubmitModal(false)}
-        onConfirm={handleSubmit}
+        onConfirm={() => handleSubmit("Manual Submission")}
         questions={questions}
         answers={answers}
         markedForReview={markedForReview}
         submitting={submitting}
+      />
+
+      {/* Navigation Policy Exit Warning Modal */}
+      <AssessmentExitConfirmModal
+        isOpen={showExitModal}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        onContinue={handleContinueAssessment}
+        onLeave={handleConfirmLeaveAssessment}
+        isWarningOnly={modalConfig.isWarningOnly}
       />
     </div>
   );

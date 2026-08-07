@@ -46,7 +46,7 @@ export const saveAnswer = (attemptId, questionId, payload) =>
   api.put(`/attempts/${attemptId}/answers/${questionId}`, payload).then((r) => r.data);
 export const runSample = (attemptId, questionId, payload) =>
   api.post(`/attempts/${attemptId}/run-sample/${questionId}`, payload).then((r) => r.data);
-export const submitAttempt = (attemptId) => api.post(`/attempts/${attemptId}/submit`).then((r) => r.data);
+export const submitAttempt = (attemptId, payload = {}) => api.post(`/attempts/${attemptId}/submit`, payload).then((r) => r.data);
 export const getAttempt = (attemptId) => api.get(`/attempts/${attemptId}`).then((r) => r.data);
 
 // Admin: results & analytics

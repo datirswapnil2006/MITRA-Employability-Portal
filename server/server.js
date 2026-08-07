@@ -12,6 +12,7 @@ import proctorRoutes from "./routes/proctorRoutes.js";
 import psychometricRoutes from "./routes/psychometricRoutes.js";
 import materialRoutes from "./routes/materialRoutes.js";
 import selfTestRoutes from "./routes/selfTestRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -38,6 +39,7 @@ app.use("/api/proctor", proctorRoutes);
 app.use("/api/psychometric", psychometricRoutes);
 app.use("/api/materials", materialRoutes);
 app.use("/api/self-test", selfTestRoutes);
+app.use("/api/ai", aiRoutes);
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 

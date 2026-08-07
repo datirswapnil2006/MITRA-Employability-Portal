@@ -4,7 +4,7 @@ import Question from "../models/Question.js";
 // @route POST /api/tests   (admin)
 export const createTest = async (req, res) => {
   try {
-    const { title, category, description, durationMinutes } = req.body;
+    const { title, category, description, durationMinutes, navigationPolicySettings } = req.body;
     if (!title || !category || !durationMinutes) {
       return res.status(400).json({ message: "title, category and durationMinutes are required" });
     }
@@ -14,6 +14,7 @@ export const createTest = async (req, res) => {
       description,
       durationMinutes,
       isEnabled: false, // always disabled on creation
+      navigationPolicySettings: navigationPolicySettings || {},
       createdBy: req.user._id,
     });
     res.status(201).json(test);
@@ -62,13 +63,17 @@ export const getTestById = async (req, res) => {
 // @route PUT /api/tests/:id   (admin)
 export const updateTest = async (req, res) => {
   try {
-    const { title, category, description, durationMinutes } = req.body;
-    const test = await Test.findByIdAndUpdate(
-      req.params.id,
-      { title, category, description, durationMinutes },
-      { new: true, runValidators: true }
-    );
+    const { title, category, description, durationMinutes, navigationPolicySettings } = req.body;
+    const test = await Test.findById(req.params.id);
     if (!test) return res.status(404).json({ message: "Test not found" });
+
+    if (title) test.title = title;
+    if (category) test.category = category;
+    if (description !== undefined) test.description = description;
+    if (durationMinutes !== undefined) test.durationMinutes = durationMinutes;
+    if (navigationPolicySettings !== undefined) test.navigationPolicySettings = navigationPolicySettings;
+
+    await test.save();
     res.json(test);
   } catch (err) {
     res.status(500).json({ message: "Failed to update test", error: err.message });

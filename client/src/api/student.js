@@ -9,4 +9,9 @@ export const getStudentMaterials = (params = {}) => {
   if (params.search) query.set("search", params.search);
   return api.get(`/materials?${query.toString()}`).then((r) => r.data);
 };
-export const getStudentPsychometric = () => api.get("/psychometric").then((r) => r.data);
+export const getStudentPsychometric = () => api.get("/psychometric/student/available").then((r) => r.data);
+export const startPsychometricAttempt = (testId) => api.post(`/psychometric/attempt/start/${testId}`).then((r) => r.data);
+export const savePsychometricAnswer = (attemptId, payload) => api.put(`/psychometric/attempt/${attemptId}/answer`, payload).then((r) => r.data);
+export const submitPsychometricAttempt = (attemptId, payload = {}) => api.post(`/psychometric/attempt/${attemptId}/submit`, payload).then((r) => r.data);
+export const getPsychometricAttempt = (attemptId) => api.get(`/psychometric/attempt/${attemptId}`).then((r) => r.data);
+export const getPsychometricAttemptAnalysis = (attemptId) => api.get(`/psychometric/attempt/${attemptId}/analysis`).then((r) => r.data);

@@ -16,6 +16,8 @@ import StudentAvailableTests from "./pages/student/StudentAvailableTests";
 import StudentTopicPractice from "./pages/student/StudentTopicPractice";
 import StudentStudyMaterials from "./pages/student/StudentStudyMaterials";
 import StudentPsychometric from "./pages/student/StudentPsychometric";
+import StudentPsychometricAttempt from "./pages/student/StudentPsychometricAttempt";
+import StudentPsychometricReport from "./pages/student/StudentPsychometricReport";
 import StudentResults from "./pages/student/StudentResults";
 import StudentAnalytics from "./pages/student/StudentAnalytics";
 import StudentProfile from "./pages/student/StudentProfile";
@@ -258,6 +260,22 @@ export default function App() {
         element={
           <ProtectedRoute role="student">
             <StudentPsychometric />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/psychometric/attempt/:id"
+        element={
+          <ProtectedRoute role="student">
+            <StudentPsychometricAttempt />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/psychometric/report/:id"
+        element={
+          <ProtectedRoute role="student">
+            <StudentPsychometricReport />
           </ProtectedRoute>
         }
       />
