@@ -4,24 +4,27 @@ import React from "react";
  * Self-contained SVG Radar / Spider Chart component.
  * Renders concentric grid rings, polar axes, gradient polygon fill, data point markers, and trait labels.
  */
-export default function PsychometricRadarChart({ data = [], size = 320 }) {
+export default function PsychometricRadarChart({ data = [], size = 340 }) {
   if (!data || data.length < 3) {
     return (
-      <div className="w-full h-64 flex items-center justify-center text-xs text-ink-soft italic">
+      <div className="w-full h-64 flex items-center justify-center text-xs text-slate-400 dark:text-slate-500 italic">
         Need at least 3 traits to render radar visualization.
       </div>
     );
   }
 
-  const cx = size / 2;
-  const cy = size / 2;
-  const radius = cx - 50; // Leave space for labels
+  // SVG ViewBox dimensions: 440 wide, 350 high to allow perimeter text labels to fit cleanly
+  const viewBoxWidth = 440;
+  const viewBoxHeight = 350;
+  const cx = viewBoxWidth / 2;
+  const cy = viewBoxHeight / 2;
+  const radius = 95; // Radius of 100% outer ring
   const total = data.length;
   const angleStep = (Math.PI * 2) / total;
 
   // Compute 2D Cartesian point from polar coordinates
   const getCoordinates = (index, valuePercent) => {
-    const angle = index * angleStep - Math.PI / 2; // Start from top 12 o'clock
+    const angle = index * angleStep - Math.PI / 2; // Start from top (12 o'clock)
     const r = (valuePercent / 100) * radius;
     const x = cx + r * Math.cos(angle);
     const y = cy + r * Math.sin(angle);
@@ -36,12 +39,15 @@ export default function PsychometricRadarChart({ data = [], size = 320 }) {
   const polygonPointsStr = dataPoints.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
 
   return (
-    <div className="flex flex-col items-center justify-center">
-      <svg width={size} height={size} className="overflow-visible font-body">
+    <div className="w-full flex flex-col items-center justify-center overflow-hidden">
+      <svg
+        viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+        className="w-full h-auto max-w-[420px] max-h-[340px] font-body select-none"
+      >
         <defs>
           <linearGradient id="radarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="var(--color-accent, #6366f1)" stopOpacity="0.45" />
-            <stop offset="100%" stopColor="var(--color-accent, #6366f1)" stopOpacity="0.15" />
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.45" />
+            <stop offset="100%" stopColor="#6366f1" stopOpacity="0.15" />
           </linearGradient>
         </defs>
 
@@ -57,7 +63,7 @@ export default function PsychometricRadarChart({ data = [], size = 320 }) {
               key={ringIdx}
               points={ringPoints}
               fill="none"
-              stroke="#e2e8f0"
+              className="stroke-slate-200 dark:stroke-slate-700/80"
               strokeWidth={ringScale === 1.0 ? "1.5" : "1"}
               strokeDasharray={ringScale < 1.0 ? "3,3" : undefined}
             />
@@ -74,7 +80,7 @@ export default function PsychometricRadarChart({ data = [], size = 320 }) {
               y1={cy}
               x2={outerPt.x}
               y2={outerPt.y}
-              stroke="#cbd5e1"
+              className="stroke-slate-300 dark:stroke-slate-700/80"
               strokeWidth="1"
             />
           );
@@ -84,7 +90,7 @@ export default function PsychometricRadarChart({ data = [], size = 320 }) {
         <polygon
           points={polygonPointsStr}
           fill="url(#radarGradient)"
-          stroke="var(--color-accent, #6366f1)"
+          className="stroke-blue-600 dark:stroke-blue-400"
           strokeWidth="2.5"
           strokeLinejoin="round"
         />
@@ -92,16 +98,22 @@ export default function PsychometricRadarChart({ data = [], size = 320 }) {
         {/* Data Point Dots */}
         {dataPoints.map((pt, i) => (
           <g key={i}>
-            <circle cx={pt.x} cy={pt.y} r="4" fill="var(--color-accent, #6366f1)" stroke="#ffffff" strokeWidth="1.5" />
+            <circle
+              cx={pt.x}
+              cy={pt.y}
+              r="4.5"
+              className="fill-blue-600 dark:fill-blue-400 stroke-white dark:stroke-slate-900"
+              strokeWidth="1.5"
+            />
           </g>
         ))}
 
         {/* Trait Labels around perimeter */}
         {data.map((d, i) => {
-          const labelPt = getCoordinates(i, 115); // Offset outside outer ring
+          const labelPt = getCoordinates(i, 122); // Offset outside outer ring
           let textAnchor = "middle";
-          if (labelPt.x > cx + 10) textAnchor = "start";
-          else if (labelPt.x < cx - 10) textAnchor = "end";
+          if (labelPt.x > cx + 15) textAnchor = "start";
+          else if (labelPt.x < cx - 15) textAnchor = "end";
 
           return (
             <text
@@ -110,8 +122,7 @@ export default function PsychometricRadarChart({ data = [], size = 320 }) {
               y={labelPt.y}
               textAnchor={textAnchor}
               dominantBaseline="middle"
-              className="text-[11px] font-semibold font-body"
-              fill="#334155"
+              className="text-[10.5px] font-semibold fill-slate-700 dark:fill-slate-200 font-sans"
             >
               {d.name} ({d.percentage}%)
             </text>

@@ -327,10 +327,10 @@ export default function DashboardLayout({ active, links, onNavigate, children })
             </button>
 
             {/* Breadcrumb Header */}
-            <div className="hidden sm:flex items-center gap-2.5">
+            <div className="hidden sm:flex items-center gap-2.5 min-w-0">
               <Logo size="sm" showSubtitle={false} />
-              <span className="text-slate-300 dark:text-slate-700">/</span>
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 capitalize">
+              <span className="text-slate-300 dark:text-slate-700 font-light">/</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 capitalize truncate">
                 {active?.replace(/-/g, " ") || "Dashboard"}
               </span>
             </div>
