@@ -1,8 +1,10 @@
 import express from "express";
 import multer from "multer";
 import path from "path";
-import { updateQuestion, deleteQuestion } from "../controllers/questionController.js";
-import { getQuestionBank, bulkDeleteQuestions, moveQuestions } from "../controllers/questionBankController.js";
+import { createQuestionInBank, updateQuestion, deleteQuestion } from "../controllers/questionController.js";
+import {
+  getQuestionBank, bulkDeleteQuestions, moveQuestions, bulkUpdateStatus, bulkAddQuestions, attachQuestionsToSection,
+} from "../controllers/questionBankController.js";
 import { extractQuestionsFromPDF } from "../controllers/pdfQuestionController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
@@ -42,12 +44,16 @@ const handlePdfUpload = (req, res, next) => {
 // Question bank endpoints
 router.get("/bank", protect, authorize("admin"), getQuestionBank);
 router.post("/bulk-delete", protect, authorize("admin"), bulkDeleteQuestions);
+router.patch("/bulk-status", protect, authorize("admin"), bulkUpdateStatus);
+router.post("/bulk-create", protect, authorize("admin"), bulkAddQuestions);
 router.patch("/move", protect, authorize("admin"), moveQuestions);
+router.patch("/attach-section", protect, authorize("admin"), attachQuestionsToSection);
 
 // PDF extraction
 router.post("/extract-pdf", protect, authorize("admin"), handlePdfUpload, extractQuestionsFromPDF);
 
-// Single question CRUD (existing)
+// Standalone & Single question CRUD
+router.post("/", protect, authorize("admin"), createQuestionInBank);
 router.put("/:id", protect, authorize("admin"), updateQuestion);
 router.delete("/:id", protect, authorize("admin"), deleteQuestion);
 

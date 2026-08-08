@@ -65,21 +65,21 @@ export default function AdminOverview() {
           shadow: "shadow-cyan-500/25",
         },
         {
-          label: "Pending Registrations",
-          value: data.pendingRegistrations,
-          icon: UserPlus,
-          color: data.pendingRegistrations > 0 ? "from-orange-500 to-orange-600" : "from-slate-400 to-slate-500",
-          shadow: data.pendingRegistrations > 0 ? "shadow-orange-500/25" : "shadow-slate-400/25",
+          label: "Active Students",
+          value: data.totalStudents,
+          icon: Users,
+          color: "from-emerald-500 to-emerald-600",
+          shadow: "shadow-emerald-500/25",
         },
       ]
     : [];
 
   const quickActions = [
-    { label: "Create New Test", target: "tests", icon: ClipboardList },
-    { label: "Add Questions", target: "questions/manual", icon: FileText },
+    { label: "Create Placement Test", target: "official-placement-test", icon: ClipboardList },
     { label: "View Results", target: "results", icon: BarChart3 },
-    { label: "Approve Students", target: "registrations", icon: UserPlus },
+    { label: "Student Management", target: "students", icon: Users },
   ];
+
 
   return (
     <DashboardLayout active="overview" links={ADMIN_LINKS} onNavigate={navigateAdmin(navigate)}>

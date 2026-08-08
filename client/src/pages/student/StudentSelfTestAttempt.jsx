@@ -4,12 +4,13 @@ import {
   getSelfTestAttempt,
   saveSelfTestAnswer,
   submitSelfTest,
+  generateSelfTest,
   toggleBookmark,
   saveNote,
 } from "../../api/selfTest";
 import { runSample } from "../../api/tests";
 import {
-  Trophy, Zap, Award, AlertCircle, ArrowLeft, ArrowRight, CheckCircle2
+  Trophy, Zap, Award, AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, RefreshCw, Sparkles, Target, Eye
 } from "lucide-react";
 
 // Modern Test Components
@@ -193,40 +194,116 @@ export default function StudentSelfTestAttempt() {
     );
   }
 
+  const [reviewMode, setReviewMode] = useState(false);
+  const [generatingNext, setGeneratingNext] = useState(false);
+
+  const handleQuickGenerate = async (topicName, diff) => {
+    setGeneratingNext(true);
+    try {
+      const res = await generateSelfTest({
+        topics: [topicName],
+        difficulty: diff || "Medium",
+        questionCount: 10,
+        questionType: "Mixed",
+        mode: "practice",
+      });
+      if (res?.attemptId) {
+        navigate(`/student/self-test/attempt/${res.attemptId}`);
+        window.location.reload();
+      }
+    } catch (e) {
+      alert(e.response?.data?.message || "Could not generate session");
+    } finally {
+      setGeneratingNext(false);
+    }
+  };
+
   // Submitted Summary Screen
   if (submittedResult) {
+    const topicTitle = attempt?.config?.topics?.[0] || "AI Practice Test";
+    const currentDiff = attempt?.config?.difficulty || "Medium";
+    const correctCount = submittedResult.answers
+      ? submittedResult.answers.filter((a) => a.isCorrect).length
+      : questions.filter((qq) => {
+          const a = answers[qq._id];
+          return qq.type === "mcq" ? Number(a?.selectedOptionIndex) === Number(qq.correctOptionIndex) : false;
+        }).length;
+
+    const baseXP = Math.max(10, Math.floor(submittedResult.xpEarned - Math.floor(submittedResult.percentage / 10)));
+    const scoreBonusXP = Math.floor(submittedResult.percentage / 10);
+
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
-        <div className="max-w-lg w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl text-center relative overflow-hidden">
-          <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl" />
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4 sm:p-6 my-auto">
+        <div className="max-w-2xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden space-y-6">
+          <div className="absolute top-0 right-0 -mt-16 -mr-16 w-56 h-56 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/20 text-white">
-            <Trophy size={32} />
+          {/* Result Header */}
+          <div className="text-center space-y-2">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/20 text-white">
+              <Trophy size={32} />
+            </div>
+            <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight">🎯 Practice Result</h1>
+            <p className="text-slate-400 text-xs sm:text-sm font-medium">
+              {topicTitle} &bull; <span className="font-mono text-indigo-400 font-bold">{currentDiff} Difficulty</span>
+            </p>
           </div>
 
-          <h1 className="font-display text-2xl font-extrabold mb-1">Session Complete!</h1>
-          <p className="text-slate-400 text-xs mb-6">Your practice performance has been recorded to your readiness profile.</p>
-
-          <div className="grid grid-cols-2 gap-3.5 mb-6">
-            <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 text-center">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Score</div>
-              <div className="text-2xl font-extrabold text-indigo-400">
-                {submittedResult.totalScore} / {submittedResult.maxScore}
-              </div>
-              <div className="text-[11px] text-slate-400 font-mono mt-0.5">{submittedResult.percentage}% Accuracy</div>
+          {/* Result Metrics Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-3.5 text-center">
+              <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Score Accuracy</div>
+              <div className="text-xl sm:text-2xl font-extrabold text-indigo-400">{submittedResult.percentage}%</div>
+              <div className="text-[10px] text-slate-400 font-mono mt-0.5">{submittedResult.totalScore} / {submittedResult.maxScore} Marks</div>
             </div>
 
-            <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-4 text-center">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">XP Earned</div>
-              <div className="text-2xl font-extrabold text-amber-400 flex items-center justify-center gap-1">
-                <Zap size={20} /> +{submittedResult.xpEarned}
+            <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-3.5 text-center">
+              <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Correct Questions</div>
+              <div className="text-xl sm:text-2xl font-extrabold text-emerald-400">{correctCount} / {questions.length}</div>
+              <div className="text-[10px] text-slate-400 font-mono mt-0.5">Answered</div>
+            </div>
+
+            <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-3.5 text-center">
+              <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 mb-1">XP Earned</div>
+              <div className="text-xl sm:text-2xl font-extrabold text-amber-400 flex items-center justify-center gap-1">
+                <Zap size={18} /> +{submittedResult.xpEarned}
               </div>
-              <div className="text-[11px] text-slate-400 font-mono mt-0.5">Readiness: {submittedResult.readinessScore}%</div>
+              <div className="text-[10px] text-slate-400 font-mono mt-0.5">Level Updated</div>
+            </div>
+
+            <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-3.5 text-center">
+              <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Readiness Index</div>
+              <div className="text-xl sm:text-2xl font-extrabold text-violet-400">{submittedResult.readinessScore || 75}%</div>
+              <div className="text-[10px] text-slate-400 font-mono mt-0.5">Profile Updated</div>
             </div>
           </div>
 
+          {/* XP Breakdown Card */}
+          <div className="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-4 space-y-2">
+            <div className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Zap size={15} /> XP Breakdown
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-xs font-mono pt-1 text-slate-300">
+              <div>Completed Session: <strong className="text-white">+{baseXP} XP</strong></div>
+              <div>Score Bonus: <strong className="text-white">+{scoreBonusXP} XP</strong></div>
+              <div className="text-amber-400 font-bold">Total: +{submittedResult.xpEarned} XP</div>
+            </div>
+          </div>
+
+          {/* Strengths & Weaknesses Analysis */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="bg-emerald-950/30 border border-emerald-800/50 rounded-2xl p-4 space-y-1">
+              <span className="font-bold text-emerald-400 uppercase tracking-wider text-[11px] block">Strength</span>
+              <p className="text-slate-200">{submittedResult.percentage >= 70 ? `${topicTitle} Problem Solving` : "Attempting Practice Drills Regularly"}</p>
+            </div>
+            <div className="bg-rose-950/30 border border-rose-800/50 rounded-2xl p-4 space-y-1">
+              <span className="font-bold text-rose-400 uppercase tracking-wider text-[11px] block">Needs Improvement</span>
+              <p className="text-slate-200">{submittedResult.percentage < 70 ? `${topicTitle} Time & Accuracy` : "Speed under timed conditions"}</p>
+            </div>
+          </div>
+
+          {/* Unlocked Achievements */}
           {submittedResult.unlockedAchievements && submittedResult.unlockedAchievements.length > 0 && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 mb-6 text-left space-y-2">
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-left space-y-2">
               <div className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                 <Award size={16} /> New Achievements Unlocked!
               </div>
@@ -238,18 +315,66 @@ export default function StudentSelfTestAttempt() {
             </div>
           )}
 
-          <div className="flex gap-3">
+          {/* Detailed Question Review Mode */}
+          {reviewMode && (
+            <div className="text-left space-y-4 pt-4 border-t border-slate-800 max-h-80 overflow-y-auto pr-2">
+              <h3 className="font-bold text-sm text-indigo-300">Question Answer Key & Explanations:</h3>
+              {questions.map((question, idx) => {
+                const ans = submittedResult.answers?.find((a) => String(a.question) === String(question._id)) || {};
+                const isCorrect = ans.isCorrect;
+                return (
+                  <div key={question._id} className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-slate-400">Q{idx + 1}. ({question.type?.toUpperCase()})</span>
+                      <span className={`font-bold px-2 py-0.5 rounded-full ${isCorrect ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"}`}>
+                        {isCorrect ? "Correct" : "Incorrect / Unanswered"}
+                      </span>
+                    </div>
+                    <p className="font-medium text-white">{question.questionText}</p>
+                    {question.explanation && (
+                      <div className="text-slate-400 text-[11px] bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 font-mono">
+                        💡 <strong>Explanation:</strong> {question.explanation}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Action CTAs */}
+          <div className="space-y-2.5 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <button
+                onClick={() => setReviewMode(!reviewMode)}
+                className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-xl py-3 font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Eye size={15} /> {reviewMode ? "Hide Answers" : "Review Answers"}
+              </button>
+
+              <button
+                onClick={() => handleQuickGenerate(topicTitle, currentDiff)}
+                disabled={generatingNext}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3 font-bold text-xs transition-colors shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {generatingNext ? <RefreshCw size={15} className="animate-spin" /> : <Sparkles size={15} />}
+                Generate Similar Test
+              </button>
+
+              <button
+                onClick={() => handleQuickGenerate(topicTitle, "Medium")}
+                disabled={generatingNext}
+                className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl py-3 font-bold text-xs transition-colors shadow-lg shadow-rose-600/20 flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                <Target size={15} /> Practice Weak Topic
+              </button>
+            </div>
+
             <button
-              onClick={() => navigate("/student/self-test/hub")}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3 font-bold text-xs transition-colors shadow-lg shadow-indigo-600/20"
+              onClick={() => navigate("/student/practice")}
+              className="w-full bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-xl py-3 font-bold text-xs transition-colors"
             >
-              Go to Practice Hub
-            </button>
-            <button
-              onClick={() => navigate("/student/self-test")}
-              className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-xl py-3 font-bold text-xs transition-colors"
-            >
-              Take Another Test
+              Back to Practice Hub
             </button>
           </div>
         </div>

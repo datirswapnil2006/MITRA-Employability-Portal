@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 export const CATEGORIES = [
+  "Official Placement Test",
   "Quantitative Aptitude",
   "Logical Reasoning",
   "Verbal Ability",
@@ -38,16 +39,30 @@ const navigationPolicySettingsSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const testSectionSchema = new mongoose.Schema({
+  name: { type: String, required: true }, // e.g. Aptitude, Logical Reasoning, Verbal, Coding
+  topic: { type: String, default: "" },
+  questionCount: { type: Number, default: 0 },
+  durationMinutes: { type: Number, default: 0 },
+  marks: { type: Number, default: 0 },
+  instructions: { type: String, default: "" },
+  questions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Question" }],
+});
+
 const testSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
     category: { type: String, enum: CATEGORIES, required: true },
+    testType: { type: String, enum: ["standard", "placement"], default: "standard" },
+    difficulty: { type: String, enum: ["Easy", "Medium", "Hard", "Mixed"], default: "Medium" },
     description: { type: String, trim: true },
+    instructions: { type: String, default: "" },
     durationMinutes: { type: Number, required: true, min: 1 },
     totalMarks: { type: Number, default: 0 },
+    passingMarks: { type: Number, default: 0 },
     isEnabled: { type: Boolean, default: false }, // every new test starts disabled
-    isPractice: { type: Boolean, default: false },
     allowRetake: { type: Boolean, default: false },
+    sections: [testSectionSchema],
     navigationPolicySettings: { type: navigationPolicySettingsSchema, default: () => ({}) },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
@@ -55,6 +70,6 @@ const testSchema = new mongoose.Schema(
 );
 
 testSchema.index({ category: 1, isEnabled: 1 });
-testSchema.index({ isEnabled: 1, isPractice: 1 });
+testSchema.index({ testType: 1, isEnabled: 1 });
 
 export default mongoose.model("Test", testSchema);

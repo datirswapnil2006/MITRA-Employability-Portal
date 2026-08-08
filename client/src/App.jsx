@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
@@ -12,19 +12,17 @@ import AttemptPage from "./pages/AttemptPage";
 import ResultPage from "./pages/ResultPage";
 
 // Student pages
-import StudentAvailableTests from "./pages/student/StudentAvailableTests";
-import StudentTopicPractice from "./pages/student/StudentTopicPractice";
-import StudentStudyMaterials from "./pages/student/StudentStudyMaterials";
-import StudentPsychometric from "./pages/student/StudentPsychometric";
+import StudentAvailableTestsContainer from "./pages/student/StudentAvailableTestsContainer";
+import StudentPracticeContainer from "./pages/student/StudentPracticeContainer";
 import StudentPsychometricAttempt from "./pages/student/StudentPsychometricAttempt";
 import StudentPsychometricReport from "./pages/student/StudentPsychometricReport";
 import StudentResults from "./pages/student/StudentResults";
-import StudentAnalytics from "./pages/student/StudentAnalytics";
 import StudentProfile from "./pages/student/StudentProfile";
 
-// Admin pages
+import AdminOfficialPlacementTestWizard from "./pages/admin/AdminOfficialPlacementTestWizard";
 import AdminOverview from "./pages/admin/AdminOverview";
 import AdminTests from "./pages/admin/AdminTests";
+import AdminPlacementTestBuilder from "./pages/admin/AdminPlacementTestBuilder";
 import AdminTestQuestions from "./pages/admin/AdminTestQuestions";
 import AdminStudents from "./pages/admin/AdminStudents";
 import AdminRegistrations from "./pages/admin/AdminRegistrations";
@@ -36,16 +34,13 @@ import AdminQuestionPDF from "./pages/admin/AdminQuestionPDF";
 import AdminQuestionAI from "./pages/admin/AdminQuestionAI";
 import { lazy, Suspense } from "react";
 import AdminQuestionBank from "./pages/admin/AdminQuestionBank";
-import AdminPracticeTests from "./pages/admin/AdminPracticeTests";
 import AdminPsychometric from "./pages/admin/AdminPsychometric";
 import AdminMaterials from "./pages/admin/AdminMaterials";
 import AdminSettings from "./pages/admin/AdminSettings";
 
 // Lazy-loaded Admin Analytics & Student AI Self-Test pages
 const AdminSelfTestAnalytics = lazy(() => import("./pages/admin/AdminSelfTestAnalytics"));
-const StudentSelfTestGenerator = lazy(() => import("./pages/student/StudentSelfTestGenerator"));
 const StudentSelfTestAttempt = lazy(() => import("./pages/student/StudentSelfTestAttempt"));
-const StudentSelfTestDashboard = lazy(() => import("./pages/student/StudentSelfTestDashboard"));
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -78,13 +73,46 @@ export default function App() {
         }
       />
       <Route
-        path="/admin/tests"
+        path="/admin/official-placement-test"
         element={
           <ProtectedRoute role="admin">
-            <AdminTests />
+            <AdminOfficialPlacementTestWizard />
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/admin/official-placement-test/:id"
+        element={
+          <ProtectedRoute role="admin">
+            <AdminOfficialPlacementTestWizard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/tests"
+        element={
+          <ProtectedRoute role="admin">
+            <AdminOfficialPlacementTestWizard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/tests/builder"
+        element={
+          <ProtectedRoute role="admin">
+            <AdminOfficialPlacementTestWizard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/tests/builder/:id"
+        element={
+          <ProtectedRoute role="admin">
+            <AdminOfficialPlacementTestWizard />
+          </ProtectedRoute>
+        }
+      />
+
       <Route
         path="/admin/tests/:id"
         element={
@@ -166,14 +194,6 @@ export default function App() {
         }
       />
       <Route
-        path="/admin/practice"
-        element={
-          <ProtectedRoute role="admin">
-            <AdminPracticeTests />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/admin/psychometric"
         element={
           <ProtectedRoute role="admin">
@@ -216,21 +236,89 @@ export default function App() {
         }
       />
       <Route
-        path="/student/self-test"
+        path="/student/available-tests"
         element={
           <ProtectedRoute role="student">
-            <StudentSelfTestGenerator />
+            <StudentAvailableTestsContainer />
           </ProtectedRoute>
         }
       />
       <Route
-        path="/student/self-test/hub"
+        path="/student/available-tests/official"
         element={
           <ProtectedRoute role="student">
-            <StudentSelfTestDashboard />
+            <StudentAvailableTestsContainer />
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/student/available-tests/psychometric"
+        element={
+          <ProtectedRoute role="student">
+            <StudentAvailableTestsContainer />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/student/practice"
+        element={
+          <ProtectedRoute role="student">
+            <StudentPracticeContainer />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/practice/tests"
+        element={
+          <ProtectedRoute role="student">
+            <StudentPracticeContainer />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/practice/coding"
+        element={
+          <ProtectedRoute role="student">
+            <StudentPracticeContainer />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/practice/materials"
+        element={
+          <ProtectedRoute role="student">
+            <StudentPracticeContainer />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/student/results"
+        element={
+          <ProtectedRoute role="student">
+            <StudentResults />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/profile"
+        element={
+          <ProtectedRoute role="student">
+            <StudentProfile />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Legacy Student Route Fallback Redirects */}
+      <Route path="/student/tests" element={<Navigate to="/student/available-tests/official" replace />} />
+      <Route path="/student/psychometric" element={<Navigate to="/student/available-tests/psychometric" replace />} />
+      <Route path="/student/materials" element={<Navigate to="/student/practice/materials" replace />} />
+      <Route path="/student/self-test" element={<Navigate to="/student/practice/tests" replace />} />
+      <Route path="/student/self-test/hub" element={<Navigate to="/student/practice/tests" replace />} />
+      <Route path="/student/analytics" element={<Navigate to="/student/results" replace />} />
+
+      {/* Student Attempt Engine & Reports */}
       <Route
         path="/student/self-test/attempt/:id"
         element={
@@ -240,26 +328,10 @@ export default function App() {
         }
       />
       <Route
-        path="/student/practice"
+        path="/student/practice/attempt/:id"
         element={
           <ProtectedRoute role="student">
-            <StudentTopicPractice />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/student/materials"
-        element={
-          <ProtectedRoute role="student">
-            <StudentStudyMaterials />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/student/psychometric"
-        element={
-          <ProtectedRoute role="student">
-            <StudentPsychometric />
+            <StudentSelfTestAttempt />
           </ProtectedRoute>
         }
       />
@@ -276,30 +348,6 @@ export default function App() {
         element={
           <ProtectedRoute role="student">
             <StudentPsychometricReport />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/student/results"
-        element={
-          <ProtectedRoute role="student">
-            <StudentResults />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/student/analytics"
-        element={
-          <ProtectedRoute role="student">
-            <StudentAnalytics />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/student/profile"
-        element={
-          <ProtectedRoute role="student">
-            <StudentProfile />
           </ProtectedRoute>
         }
       />

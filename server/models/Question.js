@@ -10,11 +10,17 @@ const testCaseSchema = new mongoose.Schema(
 
 const questionSchema = new mongoose.Schema(
   {
-    test: { type: mongoose.Schema.Types.ObjectId, ref: "Test", required: true },
+    test: { type: mongoose.Schema.Types.ObjectId, ref: "Test", required: false },
     type: { type: String, enum: ["mcq", "coding"], required: true },
     questionText: { type: String, required: true },
     marks: { type: Number, required: true, min: 1 },
     difficulty: { type: String, enum: ["Easy", "Medium", "Hard"], default: "Medium" },
+    topic: { type: String, default: "General", trim: true },
+    subtopic: { type: String, default: "", trim: true },
+    source: { type: String, enum: ["manual", "pdf", "ai"], default: "manual" },
+    status: { type: String, enum: ["draft", "pending_review", "approved", "rejected"], default: "approved" },
+    sourcePdf: { type: String, default: "" },
+    explanation: { type: String, default: "" },
 
     // ---- MCQ fields ----
     options: {
@@ -33,6 +39,9 @@ const questionSchema = new mongoose.Schema(
       type: [String],
       enum: ["java", "python", "cpp"],
     },
+    inputFormat: { type: String, default: "" },
+    outputFormat: { type: String, default: "" },
+    constraints: { type: String, default: "" },
     sampleTestCases: { type: [testCaseSchema], default: [] },
     hiddenTestCases: { type: [testCaseSchema], default: [] },
   },
@@ -40,7 +49,8 @@ const questionSchema = new mongoose.Schema(
 );
 
 questionSchema.index({ test: 1 });
-questionSchema.index({ test: 1, type: 1, difficulty: 1 });
+questionSchema.index({ topic: 1, subtopic: 1, difficulty: 1 });
+questionSchema.index({ source: 1, status: 1 });
 questionSchema.index({ type: 1, difficulty: 1 });
 
 export default mongoose.model("Question", questionSchema);

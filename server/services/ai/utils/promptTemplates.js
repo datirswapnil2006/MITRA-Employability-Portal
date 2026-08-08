@@ -102,3 +102,73 @@ Return ONLY a raw JSON object, no markdown backticks, no preamble or postscript:
   "tipsForImprovement": "Custom actionable advice for the student..."
 }`;
 };
+
+export const buildBlueprintPrompt = ({ prompt }) => {
+  return `You are a senior campus placement director and curriculum engineer.
+Analyze the following natural language request for a placement assessment and generate a structured TEST BLUEPRINT.
+
+User Request / Prompt:
+"${prompt}"
+
+CRITICAL INSTRUCTIONS:
+1. Extract title, concise description, recommended duration in minutes (e.g. 45, 60, 90), and difficulty (Easy, Medium, Hard, or Mixed).
+2. Deconstruct the test into 3 to 6 logical sections based on the prompt (e.g. Quantitative Aptitude, Logical Reasoning, Verbal Ability, Data Structures & Algorithms, Coding & Programming).
+3. For each section, specify target topic, expected number of MCQ questions, expected number of Coding questions, marks per MCQ (e.g. 1 or 2), and marks per Coding question (e.g. 10 or 20).
+4. Total MCQ + Coding count should reasonably match what the user requested (or standard 25-45 questions for 60 min).
+5. Return ONLY a raw JSON object matching this structure, with no markdown code fences, backticks, or extra text:
+
+{
+  "title": "Official Campus Placement Assessment 2026",
+  "description": "Comprehensive evaluation covering Aptitude, Logical Reasoning, Verbal Ability, and Coding.",
+  "durationMinutes": 60,
+  "difficulty": "Medium",
+  "sections": [
+    {
+      "name": "Quantitative Aptitude",
+      "topic": "Quantitative Aptitude",
+      "mcqCount": 8,
+      "codingCount": 0,
+      "marksPerMcq": 1,
+      "marksPerCoding": 0,
+      "instructions": "Solve all quantitative aptitude questions."
+    },
+    {
+      "name": "Logical Reasoning",
+      "topic": "Logical Reasoning",
+      "mcqCount": 7,
+      "codingCount": 0,
+      "marksPerMcq": 1,
+      "marksPerCoding": 0,
+      "instructions": "Analytical and logical reasoning problems."
+    },
+    {
+      "name": "Verbal Ability",
+      "topic": "Verbal Ability",
+      "mcqCount": 5,
+      "codingCount": 0,
+      "marksPerMcq": 1,
+      "marksPerCoding": 0,
+      "instructions": "Grammar, comprehension, and vocabulary."
+    },
+    {
+      "name": "DSA & CS Fundamentals",
+      "topic": "Data Structures & Algorithms",
+      "mcqCount": 10,
+      "codingCount": 0,
+      "marksPerMcq": 1,
+      "marksPerCoding": 0,
+      "instructions": "Core computer science and algorithm concepts."
+    },
+    {
+      "name": "Coding Problems",
+      "topic": "Coding",
+      "mcqCount": 0,
+      "codingCount": 2,
+      "marksPerMcq": 0,
+      "marksPerCoding": 10,
+      "instructions": "Solve using Python, Java, or C++."
+    }
+  ]
+}`;
+};
+

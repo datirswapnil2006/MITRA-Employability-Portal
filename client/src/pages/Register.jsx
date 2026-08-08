@@ -117,10 +117,10 @@ export default function Register() {
                   <CheckCircle2 size={36} />
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-                  🎉 Registration Submitted Successfully!
+                  🎉 Account Created Successfully!
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-md mx-auto mb-6">
-                  Your account has been submitted for approval. You will receive access after the Placement Cell Administrator approves your registration.
+                  Your student account is active. You can now log in directly and access the placement portal.
                 </p>
 
                 {/* Submitted Summary */}
@@ -129,14 +129,14 @@ export default function Register() {
                   <div className="flex justify-between"><span className="text-slate-500">ERP Number:</span><span className="font-mono font-semibold text-blue-600 dark:text-blue-400">{form.erpNumber}</span></div>
                   <div className="flex justify-between"><span className="text-slate-500">Department:</span><span className="font-semibold text-slate-900 dark:text-white">{form.branch}</span></div>
                   <div className="flex justify-between"><span className="text-slate-500">Academic Year / Section:</span><span className="font-semibold text-slate-900 dark:text-white">{form.year} / Section {form.section}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-500">Status:</span><span className="font-bold text-amber-600 dark:text-amber-400 uppercase">Pending Approval</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Status:</span><span className="font-bold text-emerald-600 dark:text-emerald-400 uppercase">Approved / Active</span></div>
                 </div>
 
                 <Link
                   to="/login"
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md shadow-blue-500/25 transition-all"
                 >
-                  Return to Login <ArrowRight size={15} />
+                  Proceed to Login <ArrowRight size={15} />
                 </Link>
               </div>
             ) : (

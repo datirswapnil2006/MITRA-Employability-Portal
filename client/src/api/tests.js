@@ -1,6 +1,7 @@
 import api from "./axios";
 
 export const CATEGORIES = [
+  "Official Placement Test",
   "Quantitative Aptitude",
   "Logical Reasoning",
   "Verbal Ability",
@@ -51,7 +52,13 @@ export const getAttempt = (attemptId) => api.get(`/attempts/${attemptId}`).then(
 
 // Admin: results & analytics
 export const getOverview = () => api.get("/admin/overview").then((r) => r.data);
-export const getAllStudents = () => api.get("/admin/students").then((r) => r.data);
+export const getAllStudents = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.branch) query.set("branch", params.branch);
+  if (params.year) query.set("year", params.year);
+  if (params.search) query.set("search", params.search);
+  return api.get(`/admin/students?${query.toString()}`).then((r) => r.data);
+};
 export const getFlaggedAttempts = () => api.get("/admin/flagged-attempts").then((r) => r.data);
 export const getStudentDetail = (id) => api.get(`/admin/students/${id}`).then((r) => r.data);
 export const getLeaderboard = (testId, branch = "") =>

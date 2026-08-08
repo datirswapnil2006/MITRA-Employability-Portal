@@ -27,6 +27,20 @@ const answerSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const sectionResultSchema = new mongoose.Schema(
+  {
+    sectionId: { type: String, required: true },
+    sectionName: { type: String, required: true },
+    totalScore: { type: Number, default: 0 },
+    maxScore: { type: Number, default: 0 },
+    correctCount: { type: Number, default: 0 },
+    incorrectCount: { type: Number, default: 0 },
+    unattemptedCount: { type: Number, default: 0 },
+    timeSpentSeconds: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
 const attemptSchema = new mongoose.Schema(
   {
     student: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
@@ -38,6 +52,17 @@ const attemptSchema = new mongoose.Schema(
     totalScore: { type: Number, default: 0 },
     maxScore: { type: Number, default: 0 },
     submittedAt: { type: Date, default: null },
+    sectionResults: [sectionResultSchema],
+    summary: {
+      totalQuestions: { type: Number, default: 0 },
+      correctCount: { type: Number, default: 0 },
+      incorrectCount: { type: Number, default: 0 },
+      unattemptedCount: { type: Number, default: 0 },
+      percentage: { type: Number, default: 0 },
+      codingScore: { type: Number, default: 0 },
+      codingMaxScore: { type: Number, default: 0 },
+      timeTakenSeconds: { type: Number, default: 0 },
+    },
 
     // Proctoring / auto-submit & Exit Navigation Policy Audit Logs
     autoSubmitted: { type: Boolean, default: false },

@@ -6,6 +6,11 @@ export const getQuestionBank = (params = {}) => {
   if (params.test) query.set("test", params.test);
   if (params.type) query.set("type", params.type);
   if (params.difficulty) query.set("difficulty", params.difficulty);
+  if (params.topic) query.set("topic", params.topic);
+  if (params.subtopic) query.set("subtopic", params.subtopic);
+  if (params.source) query.set("source", params.source);
+  if (params.status) query.set("status", params.status);
+  if (params.marks) query.set("marks", params.marks);
   if (params.search) query.set("search", params.search);
   if (params.page) query.set("page", params.page);
   if (params.limit) query.set("limit", params.limit);
@@ -15,14 +20,46 @@ export const getQuestionBank = (params = {}) => {
 export const bulkDeleteQuestions = (ids) =>
   api.post("/questions/bulk-delete", { ids }).then((r) => r.data);
 
+export const bulkUpdateQuestionStatus = (ids, status) =>
+  api.patch("/questions/bulk-status", { ids, status }).then((r) => r.data);
+
+export const bulkAddQuestions = (questions, testId = null) =>
+  api.post("/questions/bulk-create", { questions, testId }).then((r) => r.data);
+
+export const createQuestionInBank = (payload) =>
+  api.post("/questions", payload).then((r) => r.data);
+
 export const moveQuestions = (ids, targetTestId) =>
   api.patch("/questions/move", { ids, targetTestId }).then((r) => r.data);
+
+export const attachQuestionsToSection = (testId, sectionId, questionIds) =>
+  api.patch("/questions/attach-section", { testId, sectionId, questionIds }).then((r) => r.data);
+
+export const getPlacementAnalytics = (testId) =>
+  api.get(`/tests/${testId}/placement-analytics`).then((r) => r.data);
+
+// AI Placement Test Blueprint & Question Generation
+export const generateTestBlueprintApi = (prompt) =>
+  api.post("/ai/blueprint", { prompt }).then((r) => r.data);
+
+export const generateAptitudeQuestionsApi = (payload) =>
+  api.post("/ai/aptitude", payload).then((r) => r.data);
+
+export const generateLogicalQuestionsApi = (payload) =>
+  api.post("/ai/logical", payload).then((r) => r.data);
+
+export const generateVerbalQuestionsApi = (payload) =>
+  api.post("/ai/verbal", payload).then((r) => r.data);
+
+export const generateCodingQuestionsApi = (payload) =>
+  api.post("/ai/coding", payload).then((r) => r.data);
 
 // PDF Extraction
 export const extractQuestionsFromPDF = (formData) =>
   api.post("/questions/extract-pdf", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   }).then((r) => r.data);
+
 
 // Psychometric & Behavioral Assessments
 export const listPsychometric = (params = {}) => {

@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url);
 const pdf = require("pdf-parse");
 
 // @route POST /api/questions/extract-pdf   (admin)
-// Accepts a PDF upload, extracts text, then uses the HF AI service to
+// Accepts a PDF upload, extracts text, then uses the AI service to
 // parse questions from it. Returns drafts (same shape as AI generator).
 export const extractQuestionsFromPDF = async (req, res) => {
   try {
@@ -14,20 +14,21 @@ export const extractQuestionsFromPDF = async (req, res) => {
       return res.status(400).json({ message: "No PDF file uploaded" });
     }
 
-    const { testId, type, difficulty, marks } = req.body;
-    if (!testId) {
-      return res.status(400).json({ message: "testId is required" });
-    }
+    const { testId, topic, subtopic, type, difficulty, marks } = req.body;
+    let category = "General";
 
-    const test = await Test.findById(testId);
-    if (!test) {
-      return res.status(404).json({ message: "Test not found" });
+    if (testId) {
+      const test = await Test.findById(testId);
+      if (test) {
+        category = test.category;
+      }
     }
 
     // Read and parse the uploaded PDF
     const dataBuffer = fs.readFileSync(req.file.path);
     const pdfData = await pdf(dataBuffer);
     const extractedText = pdfData.text;
+    const filename = req.file.originalname || "Uploaded PDF";
 
     // Clean up uploaded file
     fs.unlinkSync(req.file.path);
@@ -44,7 +45,7 @@ export const extractQuestionsFromPDF = async (req, res) => {
     // Use AI to parse questions from the extracted text
     const drafts = await parseQuestionsWithAI({
       text: truncatedText,
-      category: test.category,
+      category: topic || category,
       type: type || "mcq",
       difficulty: difficulty || "Medium",
       marks: Number(marks) || 2,
@@ -56,7 +57,17 @@ export const extractQuestionsFromPDF = async (req, res) => {
       });
     }
 
-    res.json({ drafts, extractedText: truncatedText.slice(0, 500) + "…" });
+    const enrichedDrafts = drafts.map((d) => ({
+      ...d,
+      topic: d.topic || topic || category || "General",
+      subtopic: d.subtopic || subtopic || "",
+      explanation: d.explanation || "",
+      sourcePdf: filename,
+      source: "pdf",
+      status: "pending_review",
+    }));
+
+    res.json({ drafts: enrichedDrafts, extractedText: truncatedText.slice(0, 500) + "…" });
   } catch (err) {
     // Clean up file if it exists
     if (req.file?.path) {
@@ -71,8 +82,6 @@ export const extractQuestionsFromPDF = async (req, res) => {
 
 // Internal: sends extracted PDF text to HF AI for question parsing
 async function parseQuestionsWithAI({ text, category, type, difficulty, marks }) {
-  // We reuse the AI question generator but with a custom prompt
-  // that includes the PDF text as context
   const axios = (await import("axios")).default;
 
   const client = axios.create({
@@ -92,7 +101,7 @@ async function parseQuestionsWithAI({ text, category, type, difficulty, marks })
 TEXT CONTENT:
 ${text}
 
-Category: ${category}
+Category/Topic: ${category}
 Difficulty: ${difficulty}
 Marks per question: ${marks}
 
@@ -101,17 +110,20 @@ Each item must have exactly this shape:
 {
   "type": "mcq",
   "questionText": string,
+  "topic": "${category}",
+  "subtopic": string,
   "marks": ${marks},
   "difficulty": "${difficulty}",
   "options": string[] (exactly 4 options),
-  "correctOptionIndex": number (0-based index of the single correct option)
+  "correctOptionIndex": number (0-based index of the single correct option),
+  "explanation": string
 }`
     : `Extract coding problems from the following text content. If the text already contains problems, convert them to the format below. If it contains educational content, generate coding problems BASED ON the content.
 
 TEXT CONTENT:
 ${text}
 
-Category: ${category}
+Category/Topic: ${category}
 Difficulty: ${difficulty}
 Marks per question: ${marks}
 
@@ -119,10 +131,16 @@ Return ONLY a raw JSON array, no markdown code fences, no commentary before or a
 Each item must have exactly this shape:
 {
   "type": "coding",
-  "questionText": string (clear problem statement with constraints),
+  "questionText": string (clear problem statement),
+  "topic": "${category}",
+  "subtopic": string,
   "marks": ${marks},
   "difficulty": "${difficulty}",
   "languages": ["python", "java", "cpp"],
+  "inputFormat": string,
+  "outputFormat": string,
+  "constraints": string,
+  "explanation": string,
   "sampleTestCases": [{ "input": string, "output": string }] (1-2 cases),
   "hiddenTestCases": [{ "input": string, "output": string }] (3-5 cases)
 }`;

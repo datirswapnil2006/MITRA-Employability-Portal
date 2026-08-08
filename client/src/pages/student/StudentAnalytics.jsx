@@ -5,7 +5,7 @@ import { getMyAttempts } from "../../api/student";
 import { STUDENT_LINKS } from "./studentLinks";
 import { BarChart2, TrendingUp, Award, CheckCircle, Target } from "lucide-react";
 
-export default function StudentAnalytics() {
+export default function StudentAnalytics({ embedded = false }) {
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -37,12 +37,8 @@ export default function StudentAnalytics() {
     categoryStats[cat].count += 1;
   });
 
-  return (
-    <DashboardLayout
-      active="analytics"
-      links={STUDENT_LINKS}
-      onNavigate={(k) => navigate(k === "tests" ? "/student" : `/student/${k}`)}
-    >
+  const mainContent = (
+    <>
       <div className="mb-7">
         <div className="flex items-center gap-2.5 mb-1">
           <BarChart2 size={24} className="text-accent" />
@@ -167,6 +163,18 @@ export default function StudentAnalytics() {
           </div>
         </>
       )}
+    </>
+  );
+
+  if (embedded) return mainContent;
+
+  return (
+    <DashboardLayout
+      active="results"
+      links={STUDENT_LINKS}
+      onNavigate={(path) => navigate(path)}
+    >
+      {mainContent}
     </DashboardLayout>
   );
 }

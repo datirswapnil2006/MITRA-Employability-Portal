@@ -50,8 +50,11 @@ export const getSelfTestTopics = async (req, res) => {
 // @route POST /api/self-test/generate (student)
 export const generateSelfTest = async (req, res) => {
   try {
-    const {
+    let {
       topics = [],
+      topic = "",
+      category = "",
+      prompt = "",
       difficulty = "Mixed",
       questionCount = 10,
       durationMinutes = 15,
@@ -63,6 +66,10 @@ export const generateSelfTest = async (req, res) => {
       shuffleOptions = true,
       prioritizeWrong = false,
     } = req.body;
+
+    if ((!topics || topics.length === 0) && (topic || category)) {
+      topics = [topic || category];
+    }
 
     const stats = await StudentStats.findOne({ student: req.user._id }).lean();
     const wrongQuestionIds = stats ? stats.wrongQuestionIds : [];
@@ -93,6 +100,7 @@ export const generateSelfTest = async (req, res) => {
         durationMinutes: Number(durationMinutes),
         questionType,
         language,
+        prompt: prompt || "",
         negativeMarking,
         negativeMarkRatio: Number(negativeMarkRatio),
         shuffleOptions,

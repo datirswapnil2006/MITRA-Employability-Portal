@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
 import { listTests } from "../../api/tests";
-import { getQuestionBank, bulkDeleteQuestions, moveQuestions } from "../../api/admin";
+import { getQuestionBank, bulkDeleteQuestions, bulkUpdateQuestionStatus, moveQuestions } from "../../api/admin";
 import { ADMIN_LINKS } from "./adminLinks";
-import { Library, Search, Trash2, ArrowRightLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { Library, Search, Trash2, ArrowRightLeft, ChevronLeft, ChevronRight, CheckCircle, XCircle } from "lucide-react";
 
 const navigateAdmin = (navigate) => (k) => {
   if (k === "overview") navigate("/admin");
@@ -23,7 +23,7 @@ export default function AdminQuestionBank() {
   const navigate = useNavigate();
   const [tests, setTests] = useState([]);
   const [data, setData] = useState({ questions: [], total: 0, page: 1, totalPages: 1 });
-  const [filters, setFilters] = useState({ test: "", type: "", difficulty: "", search: "" });
+  const [filters, setFilters] = useState({ test: "", type: "", difficulty: "", topic: "", source: "", status: "", search: "" });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(new Set());
@@ -60,7 +60,14 @@ export default function AdminQuestionBank() {
     if (!window.confirm(`Delete ${selected.size} question(s)? This cannot be undone.`)) return;
     await bulkDeleteQuestions([...selected]);
     setSelected(new Set());
-    // Reload
+    const refreshed = await getQuestionBank({ ...filters, page, limit: 20 });
+    setData(refreshed);
+  };
+
+  const handleBulkStatus = async (status) => {
+    if (!selected.size) return;
+    await bulkUpdateQuestionStatus([...selected], status);
+    setSelected(new Set());
     const refreshed = await getQuestionBank({ ...filters, page, limit: 20 });
     setData(refreshed);
   };
@@ -80,10 +87,10 @@ export default function AdminQuestionBank() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Library size={22} className="text-accent" />
-            <h1 className="font-display text-[26px] font-bold">Question Bank</h1>
+            <h1 className="font-display text-[26px] font-bold">Central Question Bank</h1>
           </div>
           <p className="text-ink-soft text-[13.5px]">
-            Browse all questions across all tests. Filter, search, and manage in bulk.
+            Browse, filter, review, and manage questions sourced via manual entry, PDF extraction, or AI generation.
           </p>
         </div>
         <div className="text-[13px] text-ink-soft font-mono">
@@ -92,15 +99,35 @@ export default function AdminQuestionBank() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-5">
-        <div className="min-w-[200px] flex-1 max-w-[280px]">
-          <label className={labelCls}>Test</label>
-          <select className={`${input} w-full`} value={filters.test} onChange={(e) => { setFilters((f) => ({ ...f, test: e.target.value })); setPage(1); }}>
-            <option value="">All Tests</option>
-            {tests.map((t) => <option key={t._id} value={t._id}>{t.title}</option>)}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
+        <div>
+          <label className={labelCls}>Topic</label>
+          <input
+            className={`${input} w-full`}
+            placeholder="e.g. Aptitude, Coding"
+            value={filters.topic}
+            onChange={(e) => { setFilters((f) => ({ ...f, topic: e.target.value })); setPage(1); }}
+          />
+        </div>
+        <div>
+          <label className={labelCls}>Source</label>
+          <select className={`${input} w-full`} value={filters.source} onChange={(e) => { setFilters((f) => ({ ...f, source: e.target.value })); setPage(1); }}>
+            <option value="">All Sources</option>
+            <option value="manual">Manual</option>
+            <option value="pdf">PDF Extraction</option>
+            <option value="ai">AI Generation</option>
           </select>
         </div>
-        <div className="min-w-[140px]">
+        <div>
+          <label className={labelCls}>Status</label>
+          <select className={`${input} w-full`} value={filters.status} onChange={(e) => { setFilters((f) => ({ ...f, status: e.target.value })); setPage(1); }}>
+            <option value="">All Statuses</option>
+            <option value="approved">Approved</option>
+            <option value="pending_review">Pending Review</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div>
           <label className={labelCls}>Type</label>
           <select className={`${input} w-full`} value={filters.type} onChange={(e) => { setFilters((f) => ({ ...f, type: e.target.value })); setPage(1); }}>
             <option value="">All Types</option>
@@ -108,22 +135,22 @@ export default function AdminQuestionBank() {
             <option value="coding">Coding</option>
           </select>
         </div>
-        <div className="min-w-[140px]">
+        <div>
           <label className={labelCls}>Difficulty</label>
           <select className={`${input} w-full`} value={filters.difficulty} onChange={(e) => { setFilters((f) => ({ ...f, difficulty: e.target.value })); setPage(1); }}>
-            <option value="">All</option>
+            <option value="">All Diff</option>
             <option value="Easy">Easy</option>
             <option value="Medium">Medium</option>
             <option value="Hard">Hard</option>
           </select>
         </div>
-        <div className="flex-1 min-w-[220px]">
+        <div>
           <label className={labelCls}>Search</label>
           <div className="relative">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
             <input
               className={`${input} w-full pl-9`}
-              placeholder="Search question text…"
+              placeholder="Search..."
               value={filters.search}
               onChange={(e) => { setFilters((f) => ({ ...f, search: e.target.value })); setPage(1); }}
             />
@@ -133,8 +160,20 @@ export default function AdminQuestionBank() {
 
       {/* Bulk Actions */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 mb-4 bg-accent/5 border border-accent/20 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-3 mb-4 bg-accent/5 border border-accent/20 rounded-xl px-4 py-3 flex-wrap">
           <span className="text-[13px] font-semibold text-accent">{selected.size} selected</span>
+          <button
+            onClick={() => handleBulkStatus("approved")}
+            className="flex items-center gap-1.5 text-[12px] font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <CheckCircle size={14} /> Approve Selected
+          </button>
+          <button
+            onClick={() => handleBulkStatus("rejected")}
+            className="flex items-center gap-1.5 text-[12px] font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <XCircle size={14} /> Reject Selected
+          </button>
           <button
             onClick={handleBulkDelete}
             className="flex items-center gap-1.5 text-[12px] font-semibold text-danger hover:bg-danger/10 px-3 py-1.5 rounded-lg transition-colors"
@@ -174,7 +213,7 @@ export default function AdminQuestionBank() {
                       className="rounded"
                     />
                   </th>
-                  {["Type", "Question", "Test", "Difficulty", "Marks"].map((h) => (
+                  {["Type", "Topic", "Question", "Source", "Status", "Difficulty", "Marks"].map((h) => (
                     <th key={h} className={th}>{h}</th>
                   ))}
                 </tr>
@@ -191,9 +230,17 @@ export default function AdminQuestionBank() {
                       />
                     </td>
                     <td className={`${td} uppercase font-mono text-[11px]`}>{q.type}</td>
-                    <td className={td}>{q.questionText?.slice(0, 80)}{q.questionText?.length > 80 ? "…" : ""}</td>
+                    <td className={`${td} font-semibold text-ink`}>{q.topic || "General"}</td>
+                    <td className={td}>{q.questionText?.slice(0, 75)}{q.questionText?.length > 75 ? "…" : ""}</td>
+                    <td className={`${td} font-mono text-[11px] capitalize`}>{q.source || "manual"}</td>
                     <td className={td}>
-                      <span className="text-[12px] text-ink-soft">{q.test?.title || "—"}</span>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
+                        q.status === "approved" ? "bg-emerald-100 text-emerald-700" :
+                        q.status === "rejected" ? "bg-red-100 text-red-700" :
+                        "bg-amber-100 text-amber-700"
+                      }`}>
+                        {q.status || "approved"}
+                      </span>
                     </td>
                     <td className={td}>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${

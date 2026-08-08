@@ -1,5 +1,6 @@
-import StudentAvailableTests from "./student/StudentAvailableTests";
+import StudentMainDashboard from "./student/StudentMainDashboard";
 
 export default function StudentDashboard() {
-  return <StudentAvailableTests />;
+  return <StudentMainDashboard />;
 }
+

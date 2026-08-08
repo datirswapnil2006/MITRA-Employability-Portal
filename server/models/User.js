@@ -37,9 +37,21 @@ const userSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],
-      default: function () {
-        return this.role === "admin" ? "approved" : "pending";
-      },
+      default: "approved",
+    },
+    academicDetails: {
+      tenthPercentage: { type: Number },
+      tenthBoard: { type: String, trim: true },
+      tenthPassingYear: { type: String, trim: true },
+      qualificationType: { type: String, enum: ["12th", "Diploma"], default: "12th" },
+      twelfthPercentage: { type: Number },
+      twelfthBoard: { type: String, trim: true },
+      twelfthPassingYear: { type: String, trim: true },
+      diplomaPercentage: { type: Number },
+      diplomaBranch: { type: String, trim: true },
+      diplomaPassingYear: { type: String, trim: true },
+      currentCgpa: { type: Number },
+      currentSemester: { type: String, trim: true },
     },
     // Forgot-password flow: we store a HASH of the reset token (never the
     // raw token) plus an expiry, mirroring how passwords themselves are
@@ -83,6 +95,7 @@ userSchema.methods.toSafeObject = function () {
     branch: this.branch,
     year: this.year,
     section: this.section,
+    academicDetails: this.academicDetails,
   };
 };
 

@@ -156,3 +156,46 @@ export const validateExplanation = (parsedData) => {
     tipsForImprovement: parsedData.tipsForImprovement ? String(parsedData.tipsForImprovement).trim() : "",
   };
 };
+
+/**
+ * Validates Test Blueprint object
+ * @param {any} parsedData
+ * @returns {object}
+ */
+export const validateBlueprint = (parsedData) => {
+  if (!parsedData || typeof parsedData !== "object") {
+    throw new Error("Parsed blueprint response is not a valid object");
+  }
+
+  const title = String(parsedData.title || "Official Placement Test").trim();
+  const description = String(parsedData.description || "Campus Placement Assessment").trim();
+  const durationMinutes = Number(parsedData.durationMinutes) || 60;
+  const difficulty = ["Easy", "Medium", "Hard", "Mixed"].includes(parsedData.difficulty)
+    ? parsedData.difficulty
+    : "Medium";
+
+  const rawSections = Array.isArray(parsedData.sections) ? parsedData.sections : [];
+  const sections = rawSections.map((sec, idx) => ({
+    id: `sec-${Date.now()}-${idx}`,
+    name: String(sec.name || `Section ${idx + 1}`).trim(),
+    topic: String(sec.topic || sec.name || "General").trim(),
+    mcqCount: Math.max(0, Number(sec.mcqCount) || 0),
+    codingCount: Math.max(0, Number(sec.codingCount) || 0),
+    marksPerMcq: Math.max(1, Number(sec.marksPerMcq) || 1),
+    marksPerCoding: Math.max(1, Number(sec.marksPerCoding) || 10),
+    instructions: String(sec.instructions || "").trim(),
+  }));
+
+  if (sections.length === 0) {
+    throw new Error("Generated blueprint contained no valid sections");
+  }
+
+  return {
+    title,
+    description,
+    durationMinutes,
+    difficulty,
+    sections,
+  };
+};
+

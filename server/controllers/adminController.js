@@ -2,13 +2,14 @@ import User from "../models/User.js";
 import Attempt from "../models/Attempt.js";
 import Test from "../models/Test.js";
 
-// @route GET /api/admin/registrations?status=pending&branch=CSE   (admin)
-// Defaults to pending; pass ?status=approved or ?status=rejected to filter.
+// @route GET /api/admin/registrations?status=approved&branch=CSE   (admin)
+// Defaults to approved; pass ?status=pending or ?status=rejected to filter.
 // Optional ?branch=CSE further narrows results to that department.
 export const getRegistrations = async (req, res) => {
   try {
-    const status = req.query.status || "pending";
-    const filter = { role: "student", status };
+    const status = req.query.status || "approved";
+    const filter = { role: "student" };
+    if (status !== "all") filter.status = status;
     if (req.query.branch) filter.branch = req.query.branch;
 
     const students = await User.find(filter)
@@ -48,9 +49,22 @@ export const rejectRegistration = async (req, res) => {
 
 // @route GET /api/admin/students   (admin)
 // Lists every registered student with a quick summary of their attempts.
+// Optional ?branch=CSE & ?year=4th Year & ?search=Rahul
 export const getAllStudents = async (req, res) => {
   try {
-    const students = await User.find({ role: "student" }).select("-password").sort({ createdAt: -1 });
+    const filter = { role: "student" };
+    if (req.query.branch) filter.branch = req.query.branch;
+    if (req.query.year) filter.year = req.query.year;
+    if (req.query.search) {
+      const searchRegex = new RegExp(req.query.search, "i");
+      filter.$or = [
+        { name: searchRegex },
+        { erpNumber: searchRegex },
+        { email: searchRegex },
+      ];
+    }
+
+    const students = await User.find(filter).select("-password").sort({ createdAt: -1 });
 
     const summaries = await Promise.all(
       students.map(async (s) => {

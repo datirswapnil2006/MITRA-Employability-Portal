@@ -59,6 +59,59 @@ export const generateQuestions = async (req, res) => {
   }
 };
 
+// @route POST /api/questions   (admin: standalone Question Bank question)
+export const createQuestionInBank = async (req, res) => {
+  try {
+    const {
+      type, questionText, marks, difficulty,
+      topic, subtopic, source, status, sourcePdf, explanation,
+      options, correctOptionIndex,
+      languages, inputFormat, outputFormat, constraints, sampleTestCases, hiddenTestCases,
+      testId,
+    } = req.body;
+
+    if (!type || !questionText || !marks) {
+      return res.status(400).json({ message: "type, questionText and marks are required" });
+    }
+    if (type === "mcq" && (!options || options.length < 2 || correctOptionIndex === undefined)) {
+      return res.status(400).json({ message: "MCQ questions need options and a correctOptionIndex" });
+    }
+    if (type === "coding" && (!languages || languages.length === 0)) {
+      return res.status(400).json({ message: "Coding questions need at least one supported language" });
+    }
+
+    const question = await Question.create({
+      test: testId || null,
+      type,
+      questionText,
+      marks: Number(marks),
+      difficulty: difficulty || "Medium",
+      topic: topic || "General",
+      subtopic: subtopic || "",
+      source: source || "manual",
+      status: status || "approved",
+      sourcePdf: sourcePdf || "",
+      explanation: explanation || "",
+      options,
+      correctOptionIndex,
+      languages,
+      inputFormat,
+      outputFormat,
+      constraints,
+      sampleTestCases,
+      hiddenTestCases,
+    });
+
+    if (testId) {
+      await recalcTotalMarks(testId);
+    }
+
+    res.status(201).json(question);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to create question in bank", error: err.message });
+  }
+};
+
 // @route POST /api/tests/:testId/questions   (admin)
 export const addQuestion = async (req, res) => {
   try {
@@ -68,8 +121,9 @@ export const addQuestion = async (req, res) => {
 
     const {
       type, questionText, marks, difficulty,
+      topic, subtopic, source, status, sourcePdf, explanation,
       options, correctOptionIndex,
-      languages, sampleTestCases, hiddenTestCases,
+      languages, inputFormat, outputFormat, constraints, sampleTestCases, hiddenTestCases,
     } = req.body;
 
     if (!type || !questionText || !marks) {
@@ -85,8 +139,14 @@ export const addQuestion = async (req, res) => {
     const question = await Question.create({
       test: testId,
       type, questionText, marks, difficulty,
+      topic: topic || test.category || "General",
+      subtopic: subtopic || "",
+      source: source || "manual",
+      status: status || "approved",
+      sourcePdf: sourcePdf || "",
+      explanation: explanation || "",
       options, correctOptionIndex,
-      languages, sampleTestCases, hiddenTestCases,
+      languages, inputFormat, outputFormat, constraints, sampleTestCases, hiddenTestCases,
     });
 
     await recalcTotalMarks(testId);
@@ -114,7 +174,9 @@ export const updateQuestion = async (req, res) => {
       runValidators: true,
     });
     if (!question) return res.status(404).json({ message: "Question not found" });
-    await recalcTotalMarks(question.test);
+    if (question.test) {
+      await recalcTotalMarks(question.test);
+    }
     res.json(question);
   } catch (err) {
     res.status(500).json({ message: "Failed to update question", error: err.message });
@@ -126,7 +188,9 @@ export const deleteQuestion = async (req, res) => {
   try {
     const question = await Question.findByIdAndDelete(req.params.id);
     if (!question) return res.status(404).json({ message: "Question not found" });
-    await recalcTotalMarks(question.test);
+    if (question.test) {
+      await recalcTotalMarks(question.test);
+    }
     res.json({ message: "Question deleted" });
   } catch (err) {
     res.status(500).json({ message: "Failed to delete question", error: err.message });

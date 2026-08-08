@@ -17,7 +17,7 @@ const TYPE_COLORS = {
   note: "bg-emerald-100 text-emerald-600",
 };
 
-export default function StudentStudyMaterials() {
+export default function StudentStudyMaterials({ embedded = false }) {
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("");
@@ -35,12 +35,8 @@ export default function StudentStudyMaterials() {
 
   const categories = Array.from(new Set(materials.map((m) => m.category))).filter(Boolean);
 
-  return (
-    <DashboardLayout
-      active="materials"
-      links={STUDENT_LINKS}
-      onNavigate={(k) => navigate(k === "tests" ? "/student" : `/student/${k}`)}
-    >
+  const mainContent = (
+    <>
       <div className="mb-7">
         <div className="flex items-center gap-2.5 mb-1">
           <BookOpen size={24} className="text-accent" />
@@ -197,6 +193,18 @@ export default function StudentStudyMaterials() {
           </div>
         </div>
       )}
+    </>
+  );
+
+  if (embedded) return mainContent;
+
+  return (
+    <DashboardLayout
+      active="practice/materials"
+      links={STUDENT_LINKS}
+      onNavigate={(path) => navigate(path)}
+    >
+      {mainContent}
     </DashboardLayout>
   );
 }

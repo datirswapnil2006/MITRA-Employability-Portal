@@ -43,8 +43,8 @@ const handleFileUpload = (req, res, next) => {
   });
 };
 
-router.get("/", protect, authorize("admin"), getAllMaterials);
-router.get("/categories", protect, authorize("admin"), getMaterialCategories);
+router.get("/", protect, authorize("admin", "student"), getAllMaterials);
+router.get("/categories", protect, authorize("admin", "student"), getMaterialCategories);
 router.post("/", protect, authorize("admin"), handleFileUpload, createMaterial);
 router.put("/:id", protect, authorize("admin"), updateMaterial);
 router.patch("/:id/toggle", protect, authorize("admin"), toggleMaterial);

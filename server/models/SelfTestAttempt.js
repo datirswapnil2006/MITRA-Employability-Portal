@@ -34,6 +34,7 @@ const selfTestAttemptSchema = new mongoose.Schema(
       durationMinutes: { type: Number, default: 15 },
       questionType: { type: String, default: "Mixed" },
       language: { type: String, default: "python" },
+      prompt: { type: String, default: "" },
       negativeMarking: { type: Boolean, default: false },
       negativeMarkRatio: { type: Number, default: 0.25 },
       shuffleOptions: { type: Boolean, default: true },

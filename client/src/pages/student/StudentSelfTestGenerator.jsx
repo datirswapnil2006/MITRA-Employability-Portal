@@ -106,9 +106,9 @@ export default function StudentSelfTestGenerator() {
 
   return (
     <DashboardLayout
-      active="self-test"
+      active="practice/tests"
       links={STUDENT_LINKS}
-      onNavigate={(k) => navigate(k === "tests" ? "/student" : `/student/${k}`)}
+      onNavigate={(path) => navigate(path)}
     >
       {/* Modern Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 mb-8 shadow-xl border border-slate-800">

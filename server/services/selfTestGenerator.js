@@ -115,7 +115,6 @@ export const ensureQuestionBankSeeded = async () => {
         durationMinutes: 30,
         totalMarks: 50,
         isEnabled: true,
-        isPractice: true,
       });
     }
 
@@ -154,7 +153,12 @@ export const sampleQuestions = async ({
   if (hasSelectedTopics) {
     const matchingTests = await Test.find({ category: { $in: topics } }).select("_id");
     const testIds = matchingTests.map((t) => t._id);
-    testQuery = { test: { $in: testIds } };
+    testQuery = {
+      $or: [
+        { test: { $in: testIds } },
+        { topic: { $in: topics } }
+      ]
+    };
   }
 
   // 1. Strict Query (selected topics + difficulty + type)
@@ -193,8 +197,8 @@ export const sampleQuestions = async ({
     });
   }
 
-  // 4. Fallback Step 3: ONLY if NO specific topics were selected, pull from entire Question collection
-  if (!hasSelectedTopics && candidates.length < questionCount) {
+  // 4. Fallback Step 3: Pull from entire Question collection if candidates are still fewer than requested
+  if (candidates.length < questionCount) {
     const allQuestions = await Question.find({}).populate("test", "title category");
     const existingIds = new Set(candidates.map((c) => String(c._id)));
     allQuestions.forEach((c) => {

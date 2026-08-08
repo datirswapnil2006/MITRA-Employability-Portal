@@ -1,15 +1,39 @@
 import {
-  ClipboardList, Dumbbell, BookOpen, Brain, Award, BarChart2, User, Sparkles, Trophy
+  Home,
+  Target,
+  FileCheck,
+  Brain,
+  Code2,
+  Dumbbell,
+  BookOpen,
+  Award,
+  User,
 } from "lucide-react";
 
 export const STUDENT_LINKS = [
-  { key: "tests", label: "Available Tests", icon: ClipboardList },
-  { key: "self-test", label: "AI Self-Test Generator", icon: Sparkles },
-  { key: "self-test/hub", label: "Practice Hub & XP", icon: Trophy },
-  { key: "practice", label: "Topic-wise Practice", icon: Dumbbell },
-  { key: "materials", label: "Study Materials", icon: BookOpen },
-  { key: "psychometric", label: "Psychometric Assessment", icon: Brain },
-  { key: "results", label: "My Results", icon: Award },
-  { key: "analytics", label: "Performance Analytics", icon: BarChart2 },
-  { key: "profile", label: "Profile", icon: User },
+  { key: "dashboard", path: "/student", label: "Dashboard", icon: Home },
+  {
+    key: "available-tests",
+    path: "/student/available-tests",
+    label: "Available Tests",
+    icon: Target,
+    children: [
+      { key: "available-tests/official", path: "/student/available-tests/official", label: "Official Placement Test", icon: FileCheck },
+      { key: "available-tests/psychometric", path: "/student/available-tests/psychometric", label: "Psychometric Assessment", icon: Brain },
+    ],
+  },
+  {
+    key: "practice",
+    path: "/student/practice",
+    label: "Practice",
+    icon: Code2,
+    children: [
+      { key: "practice/tests", path: "/student/practice/tests", label: "Practice Tests", icon: Dumbbell },
+      { key: "practice/coding", path: "/student/practice/coding", label: "Coding Practice", icon: Code2 },
+      { key: "practice/materials", path: "/student/practice/materials", label: "Study Materials", icon: BookOpen },
+    ],
+  },
+  { key: "results", path: "/student/results", label: "My Results", icon: Award },
+  { key: "profile", path: "/student/profile", label: "Profile", icon: User },
 ];
+

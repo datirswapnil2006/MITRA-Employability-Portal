@@ -62,11 +62,11 @@ export default function DashboardLayout({ active, links, onNavigate, children })
         },
         {
           category: "LEARNING & ASSESSMENT",
-          items: links.filter((l) => ["questions", "tests", "practice", "materials"].includes(l.key)),
+          items: links.filter((l) => ["assessments", "materials"].includes(l.key)),
         },
         {
           category: "ANALYTICS & SECURITY",
-          items: links.filter((l) => ["proctoring", "psychometric", "results", "self-test-analytics"].includes(l.key)),
+          items: links.filter((l) => ["proctoring", "results"].includes(l.key)),
         },
         {
           category: "SYSTEM",
@@ -75,22 +75,23 @@ export default function DashboardLayout({ active, links, onNavigate, children })
       ].filter((g) => g.items.length > 0);
     }
 
+
     return [
       {
+        category: "MAIN",
+        items: links.filter((l) => ["dashboard"].includes(l.key)),
+      },
+      {
         category: "ASSESSMENTS",
-        items: links.filter((l) => ["tests", "self-test", "self-test/hub", "practice"].includes(l.key)),
+        items: links.filter((l) => ["available-tests"].includes(l.key)),
       },
       {
-        category: "RESOURCES",
-        items: links.filter((l) => ["materials", "psychometric"].includes(l.key)),
+        category: "PREPARATION",
+        items: links.filter((l) => ["practice"].includes(l.key)),
       },
       {
-        category: "PERFORMANCE",
-        items: links.filter((l) => ["results", "analytics"].includes(l.key)),
-      },
-      {
-        category: "ACCOUNT",
-        items: links.filter((l) => ["profile"].includes(l.key)),
+        category: "PERFORMANCE & ACCOUNT",
+        items: links.filter((l) => ["results", "profile"].includes(l.key)),
       },
     ].filter((g) => g.items.length > 0);
   };
@@ -98,7 +99,7 @@ export default function DashboardLayout({ active, links, onNavigate, children })
   const groupedLinks = getGroupedLinks();
 
   const isChildActive = (link) =>
-    link.children && link.children.some((c) => active === c.key || active.startsWith(c.key + "/"));
+    link.children && link.children.some((c) => active === c.key || active.startsWith(c.key + "/") || active === c.path);
 
   const toggleGroup = (key) =>
     setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -109,7 +110,7 @@ export default function DashboardLayout({ active, links, onNavigate, children })
   const renderLink = (link, depth = 0) => {
     const Icon = link.icon;
     const hasChildren = link.children && link.children.length > 0;
-    const isActive = active === link.key;
+    const isActive = active === link.key || active === link.path;
     const groupOpen = hasChildren && isGroupOpen(link);
     const childActive = hasChildren && isChildActive(link);
 
@@ -124,7 +125,7 @@ export default function DashboardLayout({ active, links, onNavigate, children })
             if (hasChildren) {
               toggleGroup(link.key);
             } else {
-              onNavigate(link.key);
+              onNavigate(link.path || link.key);
               setSidebarOpen(false);
             }
           }}

@@ -19,7 +19,7 @@ const selectCls =
 
 export default function AdminRegistrations() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState("pending");
+  const [tab, setTab] = useState("approved");
   const [branch, setBranch] = useState("");
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);

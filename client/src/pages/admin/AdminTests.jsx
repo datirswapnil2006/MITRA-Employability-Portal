@@ -51,12 +51,17 @@ export default function AdminTests() {
 
   return (
     <DashboardLayout active="tests" links={ADMIN_LINKS} onNavigate={(k) => navigate(k === "overview" ? "/admin" : `/admin/${k}`)}>
-      <div className="flex items-start justify-between mb-7">
+      <div className="flex items-start justify-between mb-7 flex-wrap gap-3">
         <div>
-          <h1 className="font-display text-[26px] mb-1">Tests</h1>
-          <p className="text-ink-soft text-[13.5px] m-0">Every new test is disabled by default. Enable it once questions are ready.</p>
+          <h1 className="font-display text-[26px] mb-1">Tests & Placement Assessments</h1>
+          <p className="text-ink-soft text-[13.5px] m-0">Create standard single-category tests or multi-section Official Placement Tests.</p>
         </div>
-        <button className={stampBtn} onClick={() => setShowModal(true)}>+ New Test</button>
+        <div className="flex gap-2">
+          <button className={stampBtn} onClick={() => navigate("/admin/tests/builder")}>
+            ✨ + Official Placement Test
+          </button>
+          <button className={ghostBtn} onClick={() => setShowModal(true)}>+ Standard Test</button>
+        </div>
       </div>
 
       {loading ? (
@@ -64,12 +69,12 @@ export default function AdminTests() {
       ) : err ? (
         <div className="bg-danger/10 border border-danger/30 text-danger text-[13px] px-3 py-2.5 rounded">{err}</div>
       ) : tests.length === 0 ? (
-        <div className="bg-white border border-line rounded text-center py-12 text-ink-soft">No tests yet. Create your first one.</div>
+        <div className="bg-white border border-line rounded text-center py-12 text-ink-soft">No tests yet. Create your first placement test.</div>
       ) : (
         <table className="w-full border-collapse bg-white rounded overflow-hidden shadow-sm">
           <thead>
             <tr>
-              {["Title", "Category", "Duration", "Marks", "Questions", "Status", ""].map((h) => (
+              {["Title", "Type / Category", "Duration", "Marks", "Questions", "Status", ""].map((h) => (
                 <th key={h} className="text-left font-mono text-[10.5px] tracking-wide uppercase text-ink-soft bg-slate-100 px-4 py-3 border-b border-line">
                   {h}
                 </th>
@@ -79,7 +84,14 @@ export default function AdminTests() {
           <tbody>
             {tests.map((t) => (
               <tr key={t._id} className="hover:bg-slate-50">
-                <td className="px-4 py-3.5 border-b border-slate-100 text-[13.5px]"><strong>{t.title}</strong></td>
+                <td className="px-4 py-3.5 border-b border-slate-100 text-[13.5px]">
+                  <strong>{t.title}</strong>
+                  {t.testType === "placement" && (
+                    <span className="ml-2 inline-flex text-[10px] uppercase font-mono font-bold tracking-wider text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded">
+                      Placement
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-3.5 border-b border-slate-100 text-[13.5px]">{t.category}</td>
                 <td className="px-4 py-3.5 border-b border-slate-100 text-[13.5px]">{t.durationMinutes} min</td>
                 <td className="px-4 py-3.5 border-b border-slate-100 text-[13.5px]">{t.totalMarks}</td>
@@ -107,7 +119,15 @@ export default function AdminTests() {
                         }`}
                       />
                     </button>
-                    <button className={ghostBtn} onClick={() => navigate(`/admin/tests/${t._id}`)}>Questions</button>
+                    {t.testType === "placement" ? (
+                      <button className={ghostBtn} onClick={() => navigate(`/admin/tests/builder/${t._id}`)}>
+                        Edit Builder
+                      </button>
+                    ) : (
+                      <button className={ghostBtn} onClick={() => navigate(`/admin/tests/${t._id}`)}>
+                        Questions
+                      </button>
+                    )}
                     <button className={dangerBtn} onClick={() => handleDelete(t._id)}>Delete</button>
                   </div>
                 </td>

@@ -36,9 +36,9 @@ export default function StudentPsychometric() {
 
   return (
     <DashboardLayout
-      active="psychometric"
+      active="available-tests/psychometric"
       links={STUDENT_LINKS}
-      onNavigate={(k) => navigate(k === "tests" ? "/student" : `/student/${k}`)}
+      onNavigate={(path) => navigate(path)}
     >
       <div className="mb-7">
         <div className="flex items-center gap-2.5 mb-1">

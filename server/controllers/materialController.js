@@ -4,6 +4,9 @@ import StudyMaterial from "../models/StudyMaterial.js";
 export const getAllMaterials = async (req, res) => {
   try {
     const filter = {};
+    if (req.user?.role === "student") {
+      filter.isVisible = true;
+    }
     if (req.query.category) filter.category = req.query.category;
     if (req.query.type) filter.type = req.query.type;
     if (req.query.search) {

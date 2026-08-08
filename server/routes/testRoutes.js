@@ -6,7 +6,7 @@ import {
 import {
   addQuestion, getQuestionsForTest, generateQuestions,
 } from "../controllers/questionController.js";
-import { getLeaderboard } from "../controllers/attemptController.js";
+import { getLeaderboard, getPlacementAnalytics } from "../controllers/attemptController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -27,5 +27,6 @@ router.post("/:testId/questions/generate", protect, authorize("admin"), generate
 router.post("/:testId/questions", protect, authorize("admin"), addQuestion);
 router.get("/:testId/questions", protect, authorize("admin"), getQuestionsForTest);
 router.get("/:testId/leaderboard", protect, authorize("admin"), getLeaderboard);
+router.get("/:testId/placement-analytics", protect, authorize("admin"), getPlacementAnalytics);
 
 export default router;

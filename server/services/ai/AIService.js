@@ -5,12 +5,14 @@ import {
   buildMcqPrompt,
   buildCodingPrompt,
   buildExplanationPrompt,
+  buildBlueprintPrompt,
 } from "./utils/promptTemplates.js";
 import {
   parseJsonResponse,
   validateMcqQuestions,
   validateCodingQuestions,
   validateExplanation,
+  validateBlueprint,
 } from "./utils/jsonValidator.js";
 
 export class AIService {
@@ -88,6 +90,22 @@ export class AIService {
     throw new Error(
       `All configured AI providers failed. Attempts: ${JSON.stringify(errors)}`
     );
+  }
+
+  /**
+   * Generates a Test Blueprint from prompt
+   */
+  async generateTestBlueprint({ prompt }) {
+    const res = await this._executeWithFallback(
+      () => buildBlueprintPrompt({ prompt }),
+      (parsed) => validateBlueprint(parsed)
+    );
+
+    return {
+      success: true,
+      provider: res.provider,
+      data: res.data,
+    };
   }
 
   /**
@@ -178,3 +196,4 @@ export class AIService {
 // Singleton export
 export const aiService = new AIService();
 export default aiService;
+

@@ -1,9 +1,32 @@
 import { aiService } from "../services/ai/AIService.js";
 
 /**
+ * @route POST /api/ai/blueprint
+ * @access Private (Admin)
+ */
+export const generateBlueprint = async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+      return res.status(400).json({ success: false, message: "A natural language prompt is required" });
+    }
+
+    const result = await aiService.generateTestBlueprint({ prompt });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate test blueprint",
+      error: err.message,
+    });
+  }
+};
+
+/**
  * @route POST /api/ai/aptitude
  * @access Private (Admin / Student)
  */
+
 export const generateAptitude = async (req, res) => {
   try {
     const { topic, difficulty, count, marks } = req.body;

@@ -1,12 +1,10 @@
 import User from "../models/User.js";
 import generateToken from "../utils/generateToken.js";
 import crypto from "crypto";
-import { sendPasswordResetEmail } from "../services/emailService.js";
+import { sendPasswordResetEmail, sendWelcomeEmail } from "../services/emailService.js";
 
 // @route POST /api/auth/register
-// @desc  Student self-registration. Account is created as "pending" and the
-//        student cannot log in until an admin approves it. Admins are never
-//        created here.
+// @desc Student self-registration. Account is created as approved and student can log in directly.
 export const registerStudent = async (req, res) => {
   try {
     const { erpNumber, name, email, gender, branch, year, section, password } = req.body;
@@ -32,12 +30,24 @@ export const registerStudent = async (req, res) => {
       year,
       section,
       password,
-      status: "pending",
+      status: "approved",
     });
 
-    // No token issued — the student cannot log in until an admin approves them.
+    // Send welcome email notification asynchronously (non-blocking)
+    sendWelcomeEmail({
+      to: user.email,
+      name: user.name,
+      erpNumber: user.erpNumber,
+      branch: user.branch,
+      year: user.year,
+    }).catch((emailErr) => {
+      console.warn("Failed to deliver welcome email:", emailErr.message);
+    });
+
+    const token = generateToken(user);
     res.status(201).json({
-      message: "Registration submitted. You'll be able to log in once the placement cell approves your account.",
+      message: "Registration successful! You can now log in immediately.",
+      token,
       user: user.toSafeObject(),
     });
   } catch (err) {
@@ -46,8 +56,8 @@ export const registerStudent = async (req, res) => {
 };
 
 // @route POST /api/auth/login
-// @desc  Shared login for admin + student. Role must be selected on the client
-//        and must match the account's actual role. Students must be approved.
+// @desc Shared login for admin + student. Role must be selected on the client
+// and must match the account's actual role.
 export const login = async (req, res) => {
   try {
     const { email, password, role } = req.body;
@@ -66,12 +76,8 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    if (user.role === "student" && user.status !== "approved") {
-      const message =
-        user.status === "pending"
-          ? "Your registration is still pending approval from the placement cell."
-          : "Your registration was not approved. Contact the placement cell.";
-      return res.status(403).json({ message });
+    if (user.role === "student" && user.status === "rejected") {
+      return res.status(403).json({ message: "Your registration was rejected. Contact the placement cell." });
     }
 
     const token = generateToken(user);
@@ -163,13 +169,19 @@ export const resetPassword = async (req, res) => {
 // @route PUT /api/auth/profile
 export const updateProfile = async (req, res) => {
   try {
-    const { name, gender, section, password } = req.body;
+    const { name, gender, section, academicDetails, password } = req.body;
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: "User not found" });
 
     if (name) user.name = name;
     if (gender) user.gender = gender;
     if (section) user.section = section;
+    if (academicDetails) {
+      user.academicDetails = {
+        ...user.academicDetails,
+        ...academicDetails,
+      };
+    }
     if (password && password.length >= 6) {
       user.password = password;
     }
