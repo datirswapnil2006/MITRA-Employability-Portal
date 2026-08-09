@@ -11,31 +11,48 @@ const getTransporter = () => {
   if (transporter) return transporter;
 
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    throw new Error("SMTP_USER / SMTP_PASS are not configured on the server");
+    throw new Error("SMTP_USER / SMTP_PASS are not configured in environment variables");
   }
 
+  const host = process.env.SMTP_HOST || "smtp.gmail.com";
+  // Default to port 587 for cloud deployments (Render, AWS, DigitalOcean) as port 465 is often blocked
+  const port = Number(process.env.SMTP_PORT) || 587;
+  const isSecure = process.env.SMTP_SECURE !== undefined
+    ? process.env.SMTP_SECURE === "true"
+    : port === 465;
+
+  const rawPass = process.env.SMTP_PASS || "";
+  const cleanedPass = rawPass.replace(/\s+/g, "");
+
   transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: Number(process.env.SMTP_PORT) || 465,
-    secure: (Number(process.env.SMTP_PORT) || 465) === 465, // true for 465, false for 587
+    host,
+    port,
+    secure: isSecure, // false for 587 (STARTTLS), true for 465 (Implicit SSL)
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+      user: process.env.SMTP_USER.trim(),
+      pass: cleanedPass,
     },
+    tls: {
+      rejectUnauthorized: false, // Avoid SSL certificate handshake failures on cloud servers
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 5000,
+    socketTimeout: 10000,
   });
 
   return transporter;
 };
 
 export const sendPasswordResetEmail = async ({ to, name, resetUrl }) => {
-  const t = getTransporter();
+  try {
+    const t = getTransporter();
 
-  await t.sendMail({
-    from: process.env.SMTP_FROM || `"MITRA Employability Portal" <${process.env.SMTP_USER}>`,
-    to,
-    subject: "Reset Your MITRA Portal Password",
-    text: `Hi ${name},\n\nWe received a request to reset your MITRA Employability Portal password. This link is valid for 1 hour:\n\n${resetUrl}\n\nIf you didn't request this, you can safely ignore this email.\n\nBest regards,\nMITRA Training & Placement Cell`,
-    html: `<!DOCTYPE html>
+    const info = await t.sendMail({
+      from: process.env.SMTP_FROM || `"MITRA Employability Portal" <${process.env.SMTP_USER}>`,
+      to,
+      subject: "Reset Your MITRA Portal Password",
+      text: `Hi ${name},\n\nWe received a request to reset your MITRA Employability Portal password. This link is valid for 1 hour:\n\n${resetUrl}\n\nIf you didn't request this, you can safely ignore this email.\n\nBest regards,\nMITRA Training & Placement Cell`,
+      html: `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="UTF-8" />
@@ -82,15 +99,23 @@ export const sendPasswordResetEmail = async ({ to, name, resetUrl }) => {
   </table>
 </body>
 </html>`,
-  });
+    });
+
+    console.log(`[Email Service] Password reset email sent to ${to} (MessageID: ${info.messageId})`);
+    return info;
+  } catch (err) {
+    console.error(`[Email Service Error] Failed to send password reset email to ${to}:`, err.message);
+    throw err;
+  }
 };
 
 export const sendWelcomeEmail = async ({ to, name, erpNumber, branch, year }) => {
   try {
     const t = getTransporter();
-    const portalUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    const rawUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    const portalUrl = rawUrl.split(",")[0].trim().replace(/\/+$/, "");
 
-    await t.sendMail({
+    const info = await t.sendMail({
       from: process.env.SMTP_FROM || `"MITRA Employability Portal" <${process.env.SMTP_USER}>`,
       to,
       subject: "Welcome to MITRA Employability Portal - Account Created Successfully",
@@ -187,7 +212,11 @@ export const sendWelcomeEmail = async ({ to, name, erpNumber, branch, year }) =>
 </body>
 </html>`,
     });
+
+    console.log(`[Email Service] Welcome email successfully sent to ${to} (MessageID: ${info.messageId})`);
+    return info;
   } catch (err) {
-    console.warn("Welcome email notification skipped or SMTP not configured:", err.message);
+    console.error(`[Email Service Failure] Failed to send welcome email to ${to}:`, err.message);
+    throw err;
   }
 };

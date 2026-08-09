@@ -33,16 +33,18 @@ export const registerStudent = async (req, res) => {
       status: "approved",
     });
 
-    // Send welcome email notification asynchronously (non-blocking)
-    sendWelcomeEmail({
-      to: user.email,
-      name: user.name,
-      erpNumber: user.erpNumber,
-      branch: user.branch,
-      year: user.year,
-    }).catch((emailErr) => {
-      console.warn("Failed to deliver welcome email:", emailErr.message);
-    });
+    // Send welcome email notification
+    try {
+      await sendWelcomeEmail({
+        to: user.email,
+        name: user.name,
+        erpNumber: user.erpNumber,
+        branch: user.branch,
+        year: user.year,
+      });
+    } catch (emailErr) {
+      console.warn("[Registration] Welcome email delivery warning:", emailErr.message);
+    }
 
     const token = generateToken(user);
     res.status(201).json({

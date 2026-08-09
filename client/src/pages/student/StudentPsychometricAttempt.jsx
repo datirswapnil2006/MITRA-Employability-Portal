@@ -15,6 +15,7 @@ import {
   ChevronRight,
   AlertTriangle,
   Check,
+  FileText,
 } from "lucide-react";
 
 const LIKERT_LABELS = [
@@ -247,28 +248,30 @@ export default function StudentPsychometricAttempt() {
         {currentQ && (
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-sm mb-6 flex-1 flex flex-col justify-between">
             <div>
-              {/* Question Metadata Badge Bar */}
-              <div className="flex items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <span className="font-display font-bold text-xs text-slate-200 bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
-                    Question {currentIndex + 1} of {questions.length}
+              {/* Professional Candidate Header */}
+              <div className="flex items-center justify-between gap-2 mb-5 pb-3.5 border-b border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <span className="font-display font-bold text-xs text-blue-400 bg-blue-500/10 px-3 py-1 rounded-lg border border-blue-500/20 shadow-xs">
+                    Statement {currentIndex + 1} of {questions.length}
                   </span>
-                  <span className="font-mono text-[10px] uppercase font-bold text-blue-400 bg-blue-500/20 px-2 py-0.5 rounded">
-                    {currentQ.type}
-                  </span>
+                  {answers[currentQ._id] !== undefined && (
+                    <span className="text-[11px] font-medium text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-emerald-500/20">
+                      <CheckCircle2 size={12} /> Answered
+                    </span>
+                  )}
                 </div>
-                <span className="font-mono text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded">
-                  Evaluating: {currentQ.traitKey}
+                <span className="text-xs font-medium text-slate-400 font-mono">
+                  {progressPercent}% Completed
                 </span>
               </div>
 
-              {/* Situational Context Card if SJT */}
-              {currentQ.type === "situational_judgment" && currentQ.situationContext && (
-                <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 mb-5 text-xs text-slate-200 leading-relaxed italic">
-                  <span className="font-bold uppercase text-[10px] text-slate-400 block not-italic mb-1">
-                    Scenario Context:
-                  </span>
-                  "{currentQ.situationContext}"
+              {/* Scenario Context Card */}
+              {currentQ.situationContext && (
+                <div className="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 mb-5 text-xs sm:text-sm text-slate-200 leading-relaxed">
+                  <div className="flex items-center gap-1.5 text-blue-400 font-semibold text-[11px] mb-1.5 uppercase tracking-wider">
+                    <FileText size={14} /> Scenario Context
+                  </div>
+                  <p className="italic text-slate-300">{currentQ.situationContext}</p>
                 </div>
               )}
 
