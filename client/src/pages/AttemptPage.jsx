@@ -157,22 +157,22 @@ export default function AttemptPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6">
-        <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4" />
-        <div className="text-sm font-mono text-slate-400">Initializing Proctored Test Environment…</div>
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col items-center justify-center p-6">
+        <div className="w-12 h-12 border-4 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin mb-4" />
+        <div className="text-sm font-medium text-slate-600">Initializing Proctored Test Environment...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
-        <div className="max-w-md text-center bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl">
-          <ShieldAlert size={40} className="text-rose-500 mx-auto mb-4" />
-          <div className="text-lg font-bold mb-2">{error}</div>
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center p-6">
+        <div className="max-w-md text-center bg-white border border-slate-200 p-8 rounded-2xl shadow-xl">
+          <ShieldAlert size={40} className="text-rose-600 mx-auto mb-4" />
+          <div className="text-base font-bold text-slate-900 mb-2">{error}</div>
           <button
             onClick={() => navigate("/student")}
-            className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-5 py-2.5 text-xs font-bold transition-colors"
+            className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-5 py-2.5 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
           >
             Back to Dashboard
           </button>
@@ -183,20 +183,20 @@ export default function AttemptPage() {
 
   if (terminated) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
-        <div className="max-w-lg text-center bg-slate-900 border border-slate-800 p-8 sm:p-10 rounded-3xl shadow-2xl relative overflow-hidden">
-          <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto mb-4">
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center p-6">
+        <div className="max-w-lg text-center bg-white border border-slate-200 p-8 sm:p-10 rounded-2xl shadow-2xl relative overflow-hidden">
+          <div className="w-16 h-16 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 mx-auto mb-4">
             <ShieldAlert size={32} />
           </div>
-          <div className="font-mono text-xs font-bold uppercase tracking-widest text-rose-400 mb-2">
+          <div className="font-mono text-xs font-bold uppercase tracking-widest text-rose-600 mb-2">
             Test Integrity Flagged
           </div>
-          <h1 className="font-display text-2xl font-bold mb-3">Test Automatically Submitted</h1>
-          <p className="text-slate-400 text-xs sm:text-sm leading-relaxed mb-6">
+          <h1 className="font-display text-2xl font-bold mb-3 text-slate-900">Test Automatically Submitted</h1>
+          <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-6">
             This attempt was submitted automatically due to repeated integrity violations detected by the proctoring engine (e.g. exiting fullscreen mode, switching windows, or face detection anomalies).
           </p>
           <button
-            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 py-3 font-bold text-xs transition-all shadow-lg shadow-indigo-600/20"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 py-3 font-bold text-xs transition-all shadow-xs cursor-pointer"
             onClick={() => navigate(`/student/result/${attemptId}`, { state: terminated })}
           >
             View Result Details
@@ -216,7 +216,7 @@ export default function AttemptPage() {
   }).length;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* Top Navigation Header */}
       <TestHeader
         title={test?.title}
@@ -231,12 +231,11 @@ export default function AttemptPage() {
 
       {/* Official Placement Test Section Navigation Tabs */}
       {test?.testType === "placement" && test?.sections && test?.sections.length > 0 && (
-        <div className="bg-slate-900 border-b border-slate-800 px-4 sm:px-8 py-2.5 flex items-center gap-2 overflow-x-auto">
-          <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-400 font-bold mr-2 shrink-0">
+        <div className="bg-white border-b border-slate-200 px-4 sm:px-8 py-2.5 flex items-center gap-2 overflow-x-auto shadow-2xs">
+          <span className="text-xs font-mono uppercase tracking-wider text-indigo-700 font-bold mr-2 shrink-0">
             Sections:
           </span>
           {test.sections.map((sec, secIdx) => {
-            // Find starting question index of this section
             const secQIds = (sec.questions || []).map((q) => (typeof q === "object" ? q._id : q));
             const startQIndex = questions.findIndex((q) => secQIds.includes(q._id));
             const isActiveSec = current >= startQIndex && (secIdx === test.sections.length - 1 || current < questions.findIndex((q) => (test.sections[secIdx + 1]?.questions || []).map((x) => (typeof x === "object" ? x._id : x)).includes(q._id)));
@@ -247,14 +246,14 @@ export default function AttemptPage() {
                 onClick={() => {
                   if (startQIndex !== -1) setCurrent(startQIndex);
                 }}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-2 ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 cursor-pointer ${
                   isActiveSec
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                    : "bg-slate-850 border border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                    ? "bg-indigo-600 text-white shadow-2xs font-bold"
+                    : "bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200 hover:text-slate-900"
                 }`}
               >
                 <span>{sec.name}</span>
-                <span className="text-[10px] font-mono opacity-80 bg-black/20 px-1.5 py-0.5 rounded">
+                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${isActiveSec ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"}`}>
                   {sec.questionCount || secQIds.length} Qs
                 </span>
               </button>
@@ -264,7 +263,7 @@ export default function AttemptPage() {
       )}
 
       {/* Main Workspace Layout */}
-      <div className="flex-1 flex flex-col lg:flex-row">
+      <div className="flex-1 flex flex-col lg:flex-row bg-slate-50">
         {/* Sidebar Question Palette Navigator */}
         <QuestionPalette
           questions={questions}
@@ -277,7 +276,7 @@ export default function AttemptPage() {
         />
 
         {/* Question Display Workspace */}
-        <main className="flex-1 bg-slate-950 p-4 sm:p-8 overflow-y-auto">
+        <main className="flex-1 bg-slate-50 p-4 sm:p-8 overflow-y-auto">
           <div className="max-w-4xl mx-auto space-y-6">
             {/* Active Question Card */}
             <QuestionCard
@@ -296,11 +295,11 @@ export default function AttemptPage() {
             />
 
             {/* Bottom Next / Prev Controls */}
-            <div className="flex items-center justify-between pt-6 border-t border-slate-800">
+            <div className="flex items-center justify-between pt-6 border-t border-slate-200">
               <button
                 disabled={current === 0}
                 onClick={() => setCurrent((c) => Math.max(0, c - 1))}
-                className="bg-slate-900 border border-slate-800 hover:border-slate-700 px-5 py-3 rounded-2xl text-xs font-bold text-slate-300 disabled:opacity-30 transition-all flex items-center gap-2 shadow-sm"
+                className="bg-white border border-slate-200 hover:border-slate-300 px-5 py-2.5 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-40 transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
               >
                 <ArrowLeft size={16} /> Previous Question
               </button>
@@ -308,14 +307,14 @@ export default function AttemptPage() {
               {current < questions.length - 1 ? (
                 <button
                   onClick={() => setCurrent((c) => Math.min(questions.length - 1, c + 1))}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer"
                 >
                   Save & Next <ArrowRight size={16} />
                 </button>
               ) : (
                 <button
                   onClick={() => setShowSubmitModal(true)}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-6 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer"
                 >
                   Review & Submit <CheckCircle2 size={16} />
                 </button>

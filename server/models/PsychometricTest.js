@@ -115,6 +115,33 @@ const psychometricTestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+psychometricTestSchema.pre("validate", function (next) {
+  if (Array.isArray(this.questions)) {
+    this.questions.forEach((q) => {
+      if (Array.isArray(q.options)) {
+        q.options = q.options.map((opt, idx) => {
+          if (typeof opt === "string") {
+            return {
+              optionText: opt.trim(),
+              traitKey: q.traitKey || "",
+              score: idx + 1,
+            };
+          }
+          if (opt && typeof opt === "object") {
+            return {
+              optionText: (opt.optionText || opt.text || String(opt)).trim(),
+              traitKey: opt.traitKey || q.traitKey || "",
+              score: typeof opt.score === "number" ? opt.score : idx + 1,
+            };
+          }
+          return opt;
+        });
+      }
+    });
+  }
+  next();
+});
+
 psychometricTestSchema.index({ category: 1, isEnabled: 1 });
 psychometricTestSchema.index({ status: 1 });
 

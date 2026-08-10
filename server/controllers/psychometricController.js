@@ -23,7 +23,33 @@ export const DEFAULT_PSYCHOMETRIC_TRAITS = [
   { key: "emotional_stability", name: "Emotional Stability", description: "Resilience to stress, composure, and emotional poise.", minScore: 1, maxScore: 5 },
 ];
 
-// Helper: Sanitize question objects by removing temporary frontend non-ObjectId _id strings
+// Helper: Sanitize option items by converting string values or malformed objects into proper option subdocuments
+const sanitizeOptions = (options, traitKey = "") => {
+  if (!Array.isArray(options)) return [];
+  return options.map((opt, idx) => {
+    if (typeof opt === "string") {
+      return {
+        optionText: opt.trim(),
+        traitKey: traitKey || "",
+        score: idx + 1,
+      };
+    }
+    if (opt && typeof opt === "object") {
+      return {
+        optionText: (opt.optionText || opt.text || String(opt)).trim(),
+        traitKey: opt.traitKey || traitKey || "",
+        score: typeof opt.score === "number" ? opt.score : idx + 1,
+      };
+    }
+    return {
+      optionText: String(opt).trim(),
+      traitKey: traitKey || "",
+      score: idx + 1,
+    };
+  });
+};
+
+// Helper: Sanitize question objects by removing temporary frontend non-ObjectId _id strings and sanitizing option items
 const sanitizeQuestions = (questions) => {
   if (!Array.isArray(questions)) return [];
   return questions.map((q) => {
@@ -31,6 +57,7 @@ const sanitizeQuestions = (questions) => {
     if (copy._id && typeof copy._id === "string" && !/^[0-9a-fA-F]{24}$/.test(copy._id)) {
       delete copy._id;
     }
+    copy.options = sanitizeOptions(copy.options, copy.traitKey);
     return copy;
   });
 };
@@ -203,10 +230,16 @@ export const generateAIPsychometricQuestions = async (req, res) => {
       seniorityLevel,
       difficulty,
       language,
+      autoBalanceTraits,
       includeReverseScored,
       customPrompt,
       modelPreference,
     } = req.body;
+
+    const numCount = Number(count);
+    if (isNaN(numCount) || numCount < 1 || numCount > 50) {
+      return res.status(400).json({ message: "Question count must be between 1 and 50." });
+    }
 
     if (!category || !Array.isArray(targetTraits) || targetTraits.length === 0) {
       return res.status(400).json({ message: "Category and targetTraits are required for AI psychometric generation" });
@@ -216,11 +249,12 @@ export const generateAIPsychometricQuestions = async (req, res) => {
       category,
       targetTraits,
       questionType: questionType || "mixed",
-      count: Number(count) || 5,
+      count: numCount,
       seniorityLevel: seniorityLevel || "Entry-Level Campus Recruitment",
       difficulty: difficulty || "Intermediate",
       language: language || "English",
-      includeReverseScored: includeReverseScored !== undefined ? includeReverseScored : true,
+      autoBalanceTraits: autoBalanceTraits !== undefined ? Boolean(autoBalanceTraits) : true,
+      includeReverseScored: includeReverseScored !== undefined ? Boolean(includeReverseScored) : true,
       customPrompt: customPrompt || "",
       modelPreference: modelPreference || "auto",
     });
@@ -231,6 +265,9 @@ export const generateAIPsychometricQuestions = async (req, res) => {
 
     res.json({ drafts });
   } catch (err) {
+    if (err.message === "Question count must be between 1 and 50.") {
+      return res.status(400).json({ message: err.message });
+    }
     const geminiMessage = err.response?.data?.error?.message;
     const status = err.response?.status;
 
@@ -416,7 +453,7 @@ export const createQuestionBankItem = async (req, res) => {
       traitKey,
       isReverseScored: Boolean(isReverseScored),
       situationContext: situationContext || "",
-      options: options || [],
+      options: sanitizeOptions(options, traitKey),
       difficulty: difficulty || "Intermediate",
       language: language || "English",
       category: category || "Personality Traits",

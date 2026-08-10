@@ -19,54 +19,115 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const buildPsychometricPrompt = ({
   category,
   targetTraits,
-  questionType,
-  count,
-  seniorityLevel,
+  questionType = "mixed",
+  count = 10,
+  seniorityLevel = "Entry-Level Campus Recruitment",
   difficulty = "Intermediate",
   language = "English",
+  autoBalanceTraits = true,
   includeReverseScored = true,
   customPrompt = "",
+  avoidQuestionTexts = [],
 }) => {
-  const traitsFormatted = targetTraits
-    .map((t) => `- Key: "${t.key}", Name: "${t.name}" (Desc: ${t.description || "N/A"})`)
-    .join("\n");
-
   const traitKeysList = targetTraits.map((t) => `"${t.key}"`).join(", ");
 
+  // Calculate trait distribution allocation
+  let traitAllocationText = "";
+  if (autoBalanceTraits && targetTraits.length > 0) {
+    const numTraits = targetTraits.length;
+    const basePerTrait = Math.floor(count / numTraits);
+    let remainder = count % numTraits;
+
+    const allocations = targetTraits.map((t) => {
+      const traitCount = basePerTrait + (remainder > 0 ? 1 : 0);
+      if (remainder > 0) remainder--;
+      return `- Key "${t.key}" (${t.name}): ${traitCount} question(s)`;
+    });
+
+    traitAllocationText = `REQUIRED TRAIT QUESTION ALLOCATION:\n${allocations.join("\n")}\nYou MUST generate exactly the requested question count per trait as specified above.`;
+  } else {
+    const traitsFormatted = targetTraits
+      .map((t) => `- Key: "${t.key}", Name: "${t.name}" (Desc: ${t.description || "N/A"})`)
+      .join("\n");
+    traitAllocationText = `TARGET TRAITS TO EVALUATE:\n${traitsFormatted}`;
+  }
+
+  // Calculate format distribution for mixed
+  let formatDistributionText = "";
+  if (questionType === "mixed") {
+    const likertCount = Math.ceil(count * 0.4);
+    const forcedChoiceCount = Math.floor(count * 0.3);
+    const sjtCount = count - likertCount - forcedChoiceCount;
+    formatDistributionText = `FORMAT MIXED DISTRIBUTION REQUIREMENT:
+- Likert Scale ("likert"): approximately ${likertCount} questions
+- Forced Choice Pairs ("forced_choice"): approximately ${forcedChoiceCount} questions
+- Situational Judgment ("situational_judgment"): approximately ${sjtCount} questions`;
+  } else if (questionType === "likert") {
+    formatDistributionText = `FORMAT REQUIREMENT: Every single generated question must be of type "likert".`;
+  } else if (questionType === "forced_choice") {
+    formatDistributionText = `FORMAT REQUIREMENT: Every single generated question must be of type "forced_choice".`;
+  } else if (questionType === "situational_judgment") {
+    formatDistributionText = `FORMAT REQUIREMENT: Every single generated question must be of type "situational_judgment".`;
+  }
+
+  const avoidText = avoidQuestionTexts.length > 0
+    ? `DO NOT DUPLICATE OR REPEAT ANY OF THESE EXISTING QUESTIONS:\n${avoidQuestionTexts.map((q) => `- "${q}"`).join("\n")}`
+    : "";
+
   return `You are an expert Organizational Psychologist and Behavioral Assessment Designer.
-Generate exactly ${count} psychometric & behavioral assessment question(s) for candidate evaluation.
+Generate EXACTLY ${count} high-quality psychometric & behavioral assessment question(s) for candidate evaluation.
 
 ASSESSMENT METADATA:
 - Category: ${category}
-- Seniority Level / Target Audience: ${seniorityLevel || "Entry-Level Campus Recruitment"}
+- Seniority Level / Target Audience: ${seniorityLevel}
 - Difficulty Level: ${difficulty}
 - Language: ${language}
-- Question Format Style: ${questionType || "mixed"}
-- Include Reverse Scored Questions: ${includeReverseScored ? "Yes, balance positive & reverse-scored items where appropriate" : "No, only positive-scored"}
-${customPrompt ? `- Custom Guidelines: ${customPrompt}` : ""}
+- Question Format: ${questionType}
+- Reverse-Score Balancing: ${includeReverseScored ? "Yes, automatically include balanced reverse-scored items where appropriate" : "No"}
+${customPrompt ? `- Custom Admin Instructions: ${customPrompt}` : ""}
 
-TARGET TRAITS TO EVALUATE:
-${traitsFormatted}
+${traitAllocationText}
 
-CRITICAL RULES:
-1. THIS IS STRICTLY A PSYCHOMETRIC & BEHAVIORAL TEST. DO NOT generate math, coding, logical reasoning, or general knowledge questions.
-2. Every item must measure behavioral tendencies, personality traits, emotional intelligence, or situational decision making.
-3. Assign each question a "traitKey" selected strictly from this allowed set: [ ${traitKeysList} ].
-4. Set "isReverseScored" to true if higher agreement or selection indicates a lower level of the trait.
-5. All text output must be in ${language}.
+${formatDistributionText}
+
+${avoidText}
+
+CRITICAL PSYCHOMETRIC RULES:
+1. THIS IS STRICTLY A PSYCHOMETRIC & BEHAVIORAL TEST. DO NOT generate math, coding, general knowledge, or aptitude questions.
+2. Every item must evaluate behavioral tendencies, personality traits, emotional intelligence, or situational decision making.
+3. Assign each question a "traitKey" selected strictly from allowed set: [ ${traitKeysList} ].
+4. All text output must be in ${language}.
+5. For Likert items ("likert"):
+   - Provide a clear self-report statement.
+   - If "isReverseScored" is true, agreement indicates a LOWER level of the trait.
+   - Include options array as standard 5-point scale or empty array (the system auto-maps 5-point scale: Strongly Disagree to Strongly Agree).
+6. For Forced Choice items ("forced_choice"):
+   - Provide 2 realistic behavioral statements in options array:
+     Option 1: { "optionText": "Statement indicating high trait level", "traitKey": "allowed_trait_key", "score": 5 }
+     Option 2: { "optionText": "Statement indicating alternative or lower trait level", "traitKey": "allowed_trait_key", "score": 1 }
+   - Social Desirability Rule: Avoid making one choice obviously more desirable than the other. Both choices should feel realistic and professional.
+7. For Situational Judgment items ("situational_judgment"):
+   - Provide a detailed 2-3 sentence scenario context in "situationContext".
+   - Provide 3 or 4 response options with varying effectiveness scores (e.g. 5 for optimal, 3 for moderate, 1 for counterproductive).
 
 FORMAT SPECIFICATION:
-Return ONLY a raw JSON array. Do not include markdown formatting, backticks (\`\`\`json), or preamble.
-Each element must match one of these shapes:
+Return ONLY a raw JSON array. Do not include markdown formatting, backticks (\`\`\`json), or preamble text.
 
+JSON SHAPES:
 Shape for "likert":
 {
   "type": "likert",
-  "questionText": "Clear self-report behavioral statement",
+  "questionText": "Clear self-report statement",
   "traitKey": "allowed_trait_key",
   "isReverseScored": boolean,
   "situationContext": "",
-  "options": []
+  "options": [
+    { "optionText": "Strongly Disagree", "score": 1 },
+    { "optionText": "Disagree", "score": 2 },
+    { "optionText": "Neutral", "score": 3 },
+    { "optionText": "Agree", "score": 4 },
+    { "optionText": "Strongly Agree", "score": 5 }
+  ]
 }
 
 Shape for "forced_choice":
@@ -77,22 +138,22 @@ Shape for "forced_choice":
   "isReverseScored": false,
   "situationContext": "",
   "options": [
-    { "optionText": "Statement representing high trait level", "traitKey": "allowed_trait_key", "score": 5 },
-    { "optionText": "Statement representing low trait level or alternative behavior", "traitKey": "allowed_trait_key", "score": 1 }
+    { "optionText": "First realistic behavioral statement", "traitKey": "allowed_trait_key", "score": 5 },
+    { "optionText": "Second realistic behavioral statement", "traitKey": "allowed_trait_key", "score": 1 }
   ]
 }
 
 Shape for "situational_judgment":
 {
   "type": "situational_judgment",
-  "questionText": "What would be your most effective action in this situation?",
+  "questionText": "What would be your most effective response in this scenario?",
   "traitKey": "allowed_trait_key",
   "isReverseScored": false,
-  "situationContext": "Detailed workplace conflict or pressure scenario (2-3 sentences)",
+  "situationContext": "Detailed workplace or team crisis scenario...",
   "options": [
     { "optionText": "Optimal action choice", "traitKey": "allowed_trait_key", "score": 5 },
     { "optionText": "Moderately effective choice", "traitKey": "allowed_trait_key", "score": 3 },
-    { "optionText": "Ineffective or counterproductive choice", "traitKey": "allowed_trait_key", "score": 1 }
+    { "optionText": "Counterproductive choice", "traitKey": "allowed_trait_key", "score": 1 }
   ]
 }`;
 };
@@ -147,37 +208,8 @@ const askHuggingFace = async (prompt) => {
   throw lastError || new Error("All Hugging Face model candidates failed");
 };
 
-export const generatePsychometricDrafts = async ({
-  category,
-  targetTraits,
-  questionType = "mixed",
-  count = 5,
-  seniorityLevel = "Entry-Level Campus Recruitment",
-  difficulty = "Intermediate",
-  language = "English",
-  includeReverseScored = true,
-  customPrompt = "",
-  modelPreference = "auto",
-}) => {
-  if (!Array.isArray(targetTraits) || targetTraits.length === 0) {
-    throw new Error("Target traits are required for AI psychometric question generation");
-  }
-
-  const prompt = buildPsychometricPrompt({
-    category,
-    targetTraits,
-    questionType,
-    count: Math.min(20, Math.max(1, Number(count) || 5)),
-    seniorityLevel,
-    difficulty,
-    language,
-    includeReverseScored,
-    customPrompt,
-  });
-
+const executeCompletion = async (prompt, modelPreference = "auto") => {
   let rawText = "";
-
-  // Try Multi-provider AI service if specific provider chosen or auto mode
   if (modelPreference !== "huggingface") {
     try {
       const res = await aiServiceInstance._executeWithFallback(
@@ -201,23 +233,127 @@ export const generatePsychometricDrafts = async ({
     throw new Error("Failed to generate AI questions across available providers.");
   }
 
-  const drafts = extractJsonArray(rawText);
+  return rawText;
+};
+
+export const generatePsychometricDrafts = async ({
+  category,
+  targetTraits,
+  questionType = "mixed",
+  count = 10,
+  seniorityLevel = "Entry-Level Campus Recruitment",
+  difficulty = "Intermediate",
+  language = "English",
+  autoBalanceTraits = true,
+  includeReverseScored = true,
+  customPrompt = "",
+  modelPreference = "auto",
+}) => {
+  const reqCount = Number(count);
+  if (isNaN(reqCount) || reqCount < 1 || reqCount > 50) {
+    throw new Error("Question count must be between 1 and 50.");
+  }
+
+  if (!Array.isArray(targetTraits) || targetTraits.length === 0) {
+    throw new Error("Target traits are required for AI psychometric question generation");
+  }
+
   const validTraitKeys = new Set(targetTraits.map((t) => t.key));
   const fallbackTraitKey = targetTraits[0].key;
 
-  return drafts.filter((d) => {
-    if (!d.questionText || typeof d.questionText !== "string") return false;
-    if (!d.traitKey || !validTraitKeys.has(d.traitKey)) {
-      d.traitKey = fallbackTraitKey;
+  const sanitizeDraftItems = (drafts) => {
+    return drafts.filter((d) => {
+      if (!d || typeof d !== "object") return false;
+      if (!d.questionText || typeof d.questionText !== "string" || !d.questionText.trim()) return false;
+      if (!d.traitKey || !validTraitKeys.has(d.traitKey)) {
+        d.traitKey = fallbackTraitKey;
+      }
+      if (!["likert", "forced_choice", "situational_judgment"].includes(d.type)) {
+        d.type = questionType !== "mixed" && ["likert", "forced_choice", "situational_judgment"].includes(questionType)
+          ? questionType
+          : "likert";
+      }
+      d.isReverseScored = Boolean(d.isReverseScored);
+      d.situationContext = d.situationContext || "";
+      if (Array.isArray(d.options)) {
+        d.options = d.options.map((opt, idx) => {
+          if (typeof opt === "string") {
+            return {
+              optionText: opt.trim(),
+              traitKey: d.traitKey || "",
+              score: idx + 1,
+            };
+          }
+          if (opt && typeof opt === "object") {
+            return {
+              optionText: (opt.optionText || opt.text || String(opt)).trim(),
+              traitKey: opt.traitKey || d.traitKey || "",
+              score: typeof opt.score === "number" ? opt.score : idx + 1,
+            };
+          }
+          return {
+            optionText: String(opt).trim(),
+            traitKey: d.traitKey || "",
+            score: idx + 1,
+          };
+        });
+      } else {
+        d.options = [];
+      }
+      return true;
+    });
+  };
+
+  const accumulatedQuestions = [];
+  const seenTexts = new Set();
+  let maxRetries = 3;
+
+  while (accumulatedQuestions.length < reqCount && maxRetries > 0) {
+    const missingCount = reqCount - accumulatedQuestions.length;
+    const prompt = buildPsychometricPrompt({
+      category,
+      targetTraits,
+      questionType,
+      count: missingCount,
+      seniorityLevel,
+      difficulty,
+      language,
+      autoBalanceTraits,
+      includeReverseScored,
+      customPrompt,
+      avoidQuestionTexts: Array.from(seenTexts),
+    });
+
+    try {
+      const rawText = await executeCompletion(prompt, modelPreference);
+      const parsedDrafts = extractJsonArray(rawText);
+      const validDrafts = sanitizeDraftItems(parsedDrafts);
+
+      let addedInThisBatch = 0;
+      for (const d of validDrafts) {
+        const normText = d.questionText.trim().toLowerCase();
+        if (!seenTexts.has(normText)) {
+          seenTexts.add(normText);
+          accumulatedQuestions.push(d);
+          addedInThisBatch++;
+          if (accumulatedQuestions.length >= reqCount) break;
+        }
+      }
+
+      if (addedInThisBatch === 0) {
+        maxRetries--;
+      }
+    } catch (err) {
+      console.warn(`[aiPsychometricGenerator] Draft generation attempt failed (retries left ${maxRetries - 1}):`, err.message);
+      maxRetries--;
+      if (accumulatedQuestions.length === 0 && maxRetries === 0) {
+        throw err;
+      }
     }
-    if (!["likert", "forced_choice", "situational_judgment"].includes(d.type)) {
-      d.type = "likert";
-    }
-    d.isReverseScored = Boolean(d.isReverseScored);
-    d.situationContext = d.situationContext || "";
-    d.options = Array.isArray(d.options) ? d.options : [];
-    return true;
-  });
+  }
+
+  // Never return more questions than requested
+  return accumulatedQuestions.slice(0, reqCount);
 };
 
 export const regenerateSingleQuestion = async ({

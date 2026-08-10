@@ -170,22 +170,22 @@ export default function StudentSelfTestAttempt() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6">
-        <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4" />
-        <div className="text-sm font-medium text-slate-400">Loading Practice Sandbox Environment…</div>
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col items-center justify-center p-6">
+        <div className="w-10 h-10 border-4 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin mb-4" />
+        <div className="text-sm font-medium text-slate-600">Loading Practice Sandbox Environment...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
-        <div className="max-w-md text-center bg-slate-900 border border-slate-800 p-8 rounded-3xl">
-          <AlertCircle size={36} className="text-rose-500 mx-auto mb-3" />
-          <div className="text-base font-bold mb-2 text-white">{error}</div>
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center p-6">
+        <div className="max-w-md text-center bg-white border border-slate-200 p-8 rounded-2xl shadow-xl">
+          <AlertCircle size={36} className="text-rose-600 mx-auto mb-3" />
+          <div className="text-base font-bold mb-2 text-slate-900">{error}</div>
           <button
             onClick={() => navigate("/student/self-test")}
-            className="mt-4 bg-indigo-600 text-white rounded-xl px-5 py-2.5 text-xs font-bold hover:bg-indigo-700 transition-colors"
+            className="mt-4 bg-indigo-600 text-white rounded-xl px-5 py-2.5 text-xs font-bold hover:bg-indigo-700 transition-colors shadow-2xs cursor-pointer"
           >
             Back to Practice Generator
           </button>
@@ -233,82 +233,80 @@ export default function StudentSelfTestAttempt() {
     const scoreBonusXP = Math.floor(submittedResult.percentage / 10);
 
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4 sm:p-6 my-auto">
-        <div className="max-w-2xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden space-y-6">
-          <div className="absolute top-0 right-0 -mt-16 -mr-16 w-56 h-56 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center p-4 sm:p-6 my-auto">
+        <div className="max-w-2xl w-full bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden space-y-6">
           {/* Result Header */}
           <div className="text-center space-y-2">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/20 text-white">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto shadow-2xs text-amber-600">
               <Trophy size={32} />
             </div>
-            <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight">🎯 Practice Result</h1>
-            <p className="text-slate-400 text-xs sm:text-sm font-medium">
-              {topicTitle} &bull; <span className="font-mono text-indigo-400 font-bold">{currentDiff} Difficulty</span>
+            <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">🎯 Practice Result</h1>
+            <p className="text-slate-600 text-xs sm:text-sm font-medium">
+              {topicTitle} &bull; <span className="font-mono text-indigo-600 font-bold">{currentDiff} Difficulty</span>
             </p>
           </div>
 
           {/* Result Metrics Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-3.5 text-center">
-              <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Score Accuracy</div>
-              <div className="text-xl sm:text-2xl font-extrabold text-indigo-400">{submittedResult.percentage}%</div>
-              <div className="text-[10px] text-slate-400 font-mono mt-0.5">{submittedResult.totalScore} / {submittedResult.maxScore} Marks</div>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-center">
+              <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Score Accuracy</div>
+              <div className="text-xl sm:text-2xl font-extrabold text-indigo-600">{submittedResult.percentage}%</div>
+              <div className="text-[10px] text-slate-500 font-mono mt-0.5">{submittedResult.totalScore} / {submittedResult.maxScore} Marks</div>
             </div>
 
-            <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-3.5 text-center">
-              <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Correct Questions</div>
-              <div className="text-xl sm:text-2xl font-extrabold text-emerald-400">{correctCount} / {questions.length}</div>
-              <div className="text-[10px] text-slate-400 font-mono mt-0.5">Answered</div>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-center">
+              <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Correct Questions</div>
+              <div className="text-xl sm:text-2xl font-extrabold text-emerald-600">{correctCount} / {questions.length}</div>
+              <div className="text-[10px] text-slate-500 font-mono mt-0.5">Answered</div>
             </div>
 
-            <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-3.5 text-center">
-              <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 mb-1">XP Earned</div>
-              <div className="text-xl sm:text-2xl font-extrabold text-amber-400 flex items-center justify-center gap-1">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-center">
+              <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1">XP Earned</div>
+              <div className="text-xl sm:text-2xl font-extrabold text-amber-600 flex items-center justify-center gap-1">
                 <Zap size={18} /> +{submittedResult.xpEarned}
               </div>
-              <div className="text-[10px] text-slate-400 font-mono mt-0.5">Level Updated</div>
+              <div className="text-[10px] text-slate-500 font-mono mt-0.5">Level Updated</div>
             </div>
 
-            <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-3.5 text-center">
-              <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Readiness Index</div>
-              <div className="text-xl sm:text-2xl font-extrabold text-violet-400">{submittedResult.readinessScore || 75}%</div>
-              <div className="text-[10px] text-slate-400 font-mono mt-0.5">Profile Updated</div>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-center">
+              <div className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Readiness Index</div>
+              <div className="text-xl sm:text-2xl font-extrabold text-indigo-700">{submittedResult.readinessScore || 75}%</div>
+              <div className="text-[10px] text-slate-500 font-mono mt-0.5">Profile Updated</div>
             </div>
           </div>
 
           {/* XP Breakdown Card */}
-          <div className="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-4 space-y-2">
-            <div className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4 space-y-2">
+            <div className="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
               <Zap size={15} /> XP Breakdown
             </div>
-            <div className="grid grid-cols-3 gap-2 text-xs font-mono pt-1 text-slate-300">
-              <div>Completed Session: <strong className="text-white">+{baseXP} XP</strong></div>
-              <div>Score Bonus: <strong className="text-white">+{scoreBonusXP} XP</strong></div>
-              <div className="text-amber-400 font-bold">Total: +{submittedResult.xpEarned} XP</div>
+            <div className="grid grid-cols-3 gap-2 text-xs font-mono pt-1 text-slate-700">
+              <div>Completed Session: <strong className="text-slate-900">+{baseXP} XP</strong></div>
+              <div>Score Bonus: <strong className="text-slate-900">+{scoreBonusXP} XP</strong></div>
+              <div className="text-amber-800 font-bold">Total: +{submittedResult.xpEarned} XP</div>
             </div>
           </div>
 
           {/* Strengths & Weaknesses Analysis */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div className="bg-emerald-950/30 border border-emerald-800/50 rounded-2xl p-4 space-y-1">
-              <span className="font-bold text-emerald-400 uppercase tracking-wider text-[11px] block">Strength</span>
-              <p className="text-slate-200">{submittedResult.percentage >= 70 ? `${topicTitle} Problem Solving` : "Attempting Practice Drills Regularly"}</p>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-1">
+              <span className="font-bold text-emerald-800 uppercase tracking-wider text-[11px] block">Strength</span>
+              <p className="text-emerald-950 font-medium">{submittedResult.percentage >= 70 ? `${topicTitle} Problem Solving` : "Attempting Practice Drills Regularly"}</p>
             </div>
-            <div className="bg-rose-950/30 border border-rose-800/50 rounded-2xl p-4 space-y-1">
-              <span className="font-bold text-rose-400 uppercase tracking-wider text-[11px] block">Needs Improvement</span>
-              <p className="text-slate-200">{submittedResult.percentage < 70 ? `${topicTitle} Time & Accuracy` : "Speed under timed conditions"}</p>
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 space-y-1">
+              <span className="font-bold text-rose-800 uppercase tracking-wider text-[11px] block">Needs Improvement</span>
+              <p className="text-rose-950 font-medium">{submittedResult.percentage < 70 ? `${topicTitle} Time & Accuracy` : "Speed under timed conditions"}</p>
             </div>
           </div>
 
           {/* Unlocked Achievements */}
           {submittedResult.unlockedAchievements && submittedResult.unlockedAchievements.length > 0 && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-left space-y-2">
-              <div className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-left space-y-2">
+              <div className="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
                 <Award size={16} /> New Achievements Unlocked!
               </div>
               {submittedResult.unlockedAchievements.map((ach) => (
-                <div key={ach.key} className="text-xs text-slate-200">
+                <div key={ach.key} className="text-xs text-slate-800">
                   🏆 <strong>{ach.title}</strong> — {ach.description}
                 </div>
               ))}
@@ -317,22 +315,22 @@ export default function StudentSelfTestAttempt() {
 
           {/* Detailed Question Review Mode */}
           {reviewMode && (
-            <div className="text-left space-y-4 pt-4 border-t border-slate-800 max-h-80 overflow-y-auto pr-2">
-              <h3 className="font-bold text-sm text-indigo-300">Question Answer Key & Explanations:</h3>
+            <div className="text-left space-y-4 pt-4 border-t border-slate-200 max-h-80 overflow-y-auto pr-2">
+              <h3 className="font-bold text-sm text-indigo-700">Question Answer Key & Explanations:</h3>
               {questions.map((question, idx) => {
                 const ans = submittedResult.answers?.find((a) => String(a.question) === String(question._id)) || {};
                 const isCorrect = ans.isCorrect;
                 return (
-                  <div key={question._id} className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60 text-xs space-y-2">
+                  <div key={question._id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="font-mono font-bold text-slate-400">Q{idx + 1}. ({question.type?.toUpperCase()})</span>
-                      <span className={`font-bold px-2 py-0.5 rounded-full ${isCorrect ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"}`}>
+                      <span className="font-mono font-bold text-slate-600">Q{idx + 1}. ({question.type?.toUpperCase()})</span>
+                      <span className={`font-bold px-2 py-0.5 rounded-full ${isCorrect ? "bg-emerald-100 text-emerald-800 border border-emerald-200" : "bg-rose-100 text-rose-800 border border-rose-200"}`}>
                         {isCorrect ? "Correct" : "Incorrect / Unanswered"}
                       </span>
                     </div>
-                    <p className="font-medium text-white">{question.questionText}</p>
+                    <p className="font-medium text-slate-900">{question.questionText}</p>
                     {question.explanation && (
-                      <div className="text-slate-400 text-[11px] bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 font-mono">
+                      <div className="text-slate-700 text-[11px] bg-white p-2.5 rounded-xl border border-slate-200 font-mono">
                         💡 <strong>Explanation:</strong> {question.explanation}
                       </div>
                     )}
@@ -347,7 +345,7 @@ export default function StudentSelfTestAttempt() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <button
                 onClick={() => setReviewMode(!reviewMode)}
-                className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-xl py-3 font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
+                className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl py-3 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
               >
                 <Eye size={15} /> {reviewMode ? "Hide Answers" : "Review Answers"}
               </button>
@@ -355,7 +353,7 @@ export default function StudentSelfTestAttempt() {
               <button
                 onClick={() => handleQuickGenerate(topicTitle, currentDiff)}
                 disabled={generatingNext}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3 font-bold text-xs transition-colors shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3 font-bold text-xs transition-colors shadow-2xs flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 {generatingNext ? <RefreshCw size={15} className="animate-spin" /> : <Sparkles size={15} />}
                 Generate Similar Test
@@ -364,7 +362,7 @@ export default function StudentSelfTestAttempt() {
               <button
                 onClick={() => handleQuickGenerate(topicTitle, "Medium")}
                 disabled={generatingNext}
-                className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl py-3 font-bold text-xs transition-colors shadow-lg shadow-rose-600/20 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl py-3 font-bold text-xs transition-colors shadow-2xs flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 <Target size={15} /> Practice Weak Topic
               </button>
@@ -372,7 +370,7 @@ export default function StudentSelfTestAttempt() {
 
             <button
               onClick={() => navigate("/student/practice")}
-              className="w-full bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 rounded-xl py-3 font-bold text-xs transition-colors"
+              className="w-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl py-3 font-bold text-xs transition-colors cursor-pointer"
             >
               Back to Practice Hub
             </button>
@@ -394,7 +392,7 @@ export default function StudentSelfTestAttempt() {
   }).length;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       {/* Top Header Navigation */}
       <TestHeader
         title={attempt?.title || "Self-Test Practice Session"}
@@ -408,7 +406,7 @@ export default function StudentSelfTestAttempt() {
       />
 
       {/* Main Content Workspace */}
-      <div className="flex-1 flex flex-col lg:flex-row">
+      <div className="flex-1 flex flex-col lg:flex-row bg-slate-50">
         {/* Sidebar Question Palette */}
         <QuestionPalette
           questions={questions}
@@ -421,7 +419,7 @@ export default function StudentSelfTestAttempt() {
         />
 
         {/* Question Workspace */}
-        <main className="flex-1 bg-slate-950 p-4 sm:p-8 overflow-y-auto">
+        <main className="flex-1 bg-slate-50 p-4 sm:p-8 overflow-y-auto">
           <div className="max-w-4xl mx-auto space-y-6">
             <QuestionCard
               question={q}
@@ -442,11 +440,11 @@ export default function StudentSelfTestAttempt() {
             />
 
             {/* Bottom Controls */}
-            <div className="flex items-center justify-between pt-6 border-t border-slate-800">
+            <div className="flex items-center justify-between pt-6 border-t border-slate-200">
               <button
                 disabled={current === 0}
                 onClick={() => setCurrent((c) => Math.max(0, c - 1))}
-                className="bg-slate-900 border border-slate-800 hover:border-slate-700 px-5 py-3 rounded-2xl text-xs font-bold text-slate-300 disabled:opacity-30 transition-all flex items-center gap-2 shadow-sm"
+                className="bg-white border border-slate-200 hover:border-slate-300 px-5 py-2.5 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-40 transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
               >
                 <ArrowLeft size={16} /> Previous Question
               </button>
@@ -454,14 +452,14 @@ export default function StudentSelfTestAttempt() {
               {current < questions.length - 1 ? (
                 <button
                   onClick={() => setCurrent((c) => Math.min(questions.length - 1, c + 1))}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer"
                 >
                   Save & Next <ArrowRight size={16} />
                 </button>
               ) : (
                 <button
                   onClick={() => setShowSubmitModal(true)}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-6 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-emerald-600/20"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-xs cursor-pointer"
                 >
                   Finish Session <CheckCircle2 size={16} />
                 </button>

@@ -43,6 +43,12 @@ export default function AIPsychometricGeneratorModal({
   };
 
   const handleGenerate = async () => {
+    const numCount = Number(count);
+    if (isNaN(numCount) || numCount < 1 || numCount > 50) {
+      setError("Question count must be between 1 and 50.");
+      return;
+    }
+
     if (selectedTraits.length === 0) {
       setError("Please select at least one target trait for evaluation");
       return;
@@ -58,7 +64,7 @@ export default function AIPsychometricGeneratorModal({
         category,
         targetTraits: targetTraitsObj,
         questionType,
-        count: Number(count),
+        count: numCount,
         seniorityLevel,
       });
 
@@ -205,15 +211,20 @@ export default function AIPsychometricGeneratorModal({
                 </div>
 
                 <div>
-                  <label className={labelCls}>Question Count (1 - 10)</label>
+                  <label className={labelCls}>Question Count (1 - 50)</label>
                   <input
                     type="number"
                     min={1}
-                    max={10}
+                    max={50}
                     className={input}
                     value={count}
-                    onChange={(e) => setCount(Math.min(10, Math.max(1, Number(e.target.value))))}
+                    onChange={(e) => setCount(e.target.value)}
                   />
+                  {(Number(count) < 1 || Number(count) > 50 || isNaN(Number(count))) && (
+                    <p className="text-[11px] text-danger mt-1 font-semibold">
+                      Question count must be between 1 and 50.
+                    </p>
+                  )}
                 </div>
 
                 <div>

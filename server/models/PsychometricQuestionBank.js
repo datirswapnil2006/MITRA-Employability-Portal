@@ -50,6 +50,29 @@ const psychometricQuestionBankSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+psychometricQuestionBankSchema.pre("validate", function (next) {
+  if (Array.isArray(this.options)) {
+    this.options = this.options.map((opt, idx) => {
+      if (typeof opt === "string") {
+        return {
+          optionText: opt.trim(),
+          traitKey: this.traitKey || "",
+          score: idx + 1,
+        };
+      }
+      if (opt && typeof opt === "object") {
+        return {
+          optionText: (opt.optionText || opt.text || String(opt)).trim(),
+          traitKey: opt.traitKey || this.traitKey || "",
+          score: typeof opt.score === "number" ? opt.score : idx + 1,
+        };
+      }
+      return opt;
+    });
+  }
+  next();
+});
+
 psychometricQuestionBankSchema.index({ traitKey: 1, category: 1, difficulty: 1 });
 
 export default mongoose.model("PsychometricQuestionBank", psychometricQuestionBankSchema);

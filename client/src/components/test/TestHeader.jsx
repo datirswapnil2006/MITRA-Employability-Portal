@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Clock, ShieldCheck, Maximize2, Minimize2, Type, CheckCircle2 } from "lucide-react";
+import { Clock, ShieldCheck, Maximize2, Minimize2, CheckCircle2 } from "lucide-react";
 
 export default function TestHeader({
   title,
@@ -44,29 +44,29 @@ export default function TestHeader({
   const progressPercent = totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0;
 
   return (
-    <header className="bg-slate-900/95 backdrop-blur border-b border-slate-800 sticky top-0 z-30 px-4 sm:px-6 py-3 transition-colors">
+    <header className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 sm:px-6 py-3.5 shadow-2xs transition-colors">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Left Section: Title & Mode Badges */}
         <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
           <div>
-            <div className="flex items-center gap-2 mb-0.5">
+            <div className="flex items-center gap-2 mb-1">
               <span
                 className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold uppercase tracking-wider ${
                   mode === "practice"
-                    ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
-                    : "bg-indigo-500/15 border border-indigo-500/30 text-indigo-400"
+                    ? "bg-emerald-50 border border-emerald-200 text-emerald-700"
+                    : "bg-indigo-50 border border-indigo-200 text-indigo-700"
                 }`}
               >
-                {mode === "practice" ? "💡 Practice Session" : "⏱️ Official Test"}
+                {mode === "practice" ? "💡 Practice Session" : "⏱️ Official Assessment"}
               </span>
 
               {isProctored && (
-                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-medium">
-                  <ShieldCheck size={12} /> Proctored
+                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-[11px] font-semibold">
+                  <ShieldCheck size={13} /> Proctored
                 </span>
               )}
             </div>
-            <h1 className="font-display text-base sm:text-lg font-bold text-white tracking-tight truncate max-w-xs sm:max-w-md">
+            <h1 className="font-display text-base sm:text-lg font-bold text-slate-900 tracking-tight truncate max-w-xs sm:max-w-md">
               {title || "Assessment Session"}
             </h1>
           </div>
@@ -76,10 +76,10 @@ export default function TestHeader({
             <div
               className={`font-mono text-sm font-bold px-3 py-1.5 rounded-xl border flex items-center gap-1.5 ${
                 isCriticalTime
-                  ? "bg-rose-500/20 border-rose-500/50 text-rose-300 animate-pulse"
+                  ? "bg-rose-50 border-rose-300 text-rose-700 animate-pulse"
                   : isLowTime
-                  ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
-                  : "bg-slate-800 border-slate-700 text-indigo-300"
+                  ? "bg-amber-50 border-amber-300 text-amber-800"
+                  : "bg-indigo-50 border-indigo-200 text-indigo-700"
               }`}
             >
               <Clock size={14} />
@@ -90,16 +90,16 @@ export default function TestHeader({
 
         {/* Center Section: Progress Bar */}
         <div className="w-full md:w-64 flex flex-col gap-1.5">
-          <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
-            <span className="flex items-center gap-1">
-              <CheckCircle2 size={12} className="text-emerald-400" />
+          <div className="flex items-center justify-between text-xs font-medium text-slate-600">
+            <span className="flex items-center gap-1 text-slate-700 font-semibold">
+              <CheckCircle2 size={13} className="text-emerald-600" />
               {answeredCount} of {totalQuestions} Answered
             </span>
-            <span className="font-bold text-slate-200">{progressPercent}%</span>
+            <span className="font-bold text-slate-900 font-mono">{progressPercent}%</span>
           </div>
-          <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
+          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
             <div
-              className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 transition-all duration-300 rounded-full"
+              className="h-full bg-indigo-600 transition-all duration-300 rounded-full"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -108,12 +108,12 @@ export default function TestHeader({
         {/* Right Section: Countdown Timer & Controls */}
         <div className="hidden md:flex items-center gap-4">
           {/* Font Size Adjuster */}
-          <div className="flex items-center bg-slate-800/80 border border-slate-700/80 rounded-xl p-1 text-slate-300">
+          <div className="flex items-center bg-slate-100 border border-slate-200 rounded-xl p-1 text-slate-700">
             <button
               onClick={() => setFontSize("sm")}
               title="Small text"
-              className={`px-2 py-1 text-xs font-mono font-bold rounded-lg transition-colors ${
-                fontSize === "sm" ? "bg-indigo-600 text-white" : "hover:text-white"
+              className={`px-2 py-1 text-xs font-mono font-bold rounded-lg transition-colors cursor-pointer ${
+                fontSize === "sm" ? "bg-indigo-600 text-white shadow-2xs" : "hover:text-slate-900"
               }`}
             >
               A-
@@ -121,8 +121,8 @@ export default function TestHeader({
             <button
               onClick={() => setFontSize("base")}
               title="Default text"
-              className={`px-2 py-1 text-xs font-mono font-bold rounded-lg transition-colors ${
-                fontSize === "base" ? "bg-indigo-600 text-white" : "hover:text-white"
+              className={`px-2 py-1 text-xs font-mono font-bold rounded-lg transition-colors cursor-pointer ${
+                fontSize === "base" ? "bg-indigo-600 text-white shadow-2xs" : "hover:text-slate-900"
               }`}
             >
               A
@@ -130,8 +130,8 @@ export default function TestHeader({
             <button
               onClick={() => setFontSize("lg")}
               title="Large text"
-              className={`px-2 py-1 text-xs font-mono font-bold rounded-lg transition-colors ${
-                fontSize === "lg" ? "bg-indigo-600 text-white" : "hover:text-white"
+              className={`px-2 py-1 text-xs font-mono font-bold rounded-lg transition-colors cursor-pointer ${
+                fontSize === "lg" ? "bg-indigo-600 text-white shadow-2xs" : "hover:text-slate-900"
               }`}
             >
               A+
@@ -141,7 +141,7 @@ export default function TestHeader({
           {/* Fullscreen Button */}
           <button
             onClick={toggleFullscreen}
-            className="p-2 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 text-slate-300 rounded-xl transition-colors"
+            className="p-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl transition-colors cursor-pointer"
             title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
           >
             {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
@@ -149,15 +149,15 @@ export default function TestHeader({
 
           {/* Timer Display */}
           <div
-            className={`font-mono text-lg font-bold px-4 py-2 rounded-2xl border flex items-center gap-2 shadow-sm transition-all ${
+            className={`font-mono text-base font-bold px-4 py-2 rounded-xl border flex items-center gap-2 shadow-2xs transition-all ${
               isCriticalTime
-                ? "bg-rose-500/20 border-rose-500/50 text-rose-300 animate-pulse ring-2 ring-rose-500/30"
+                ? "bg-rose-50 border-rose-300 text-rose-700 animate-pulse ring-2 ring-rose-200"
                 : isLowTime
-                ? "bg-amber-500/20 border-amber-500/50 text-amber-300"
-                : "bg-slate-800 border-slate-700 text-indigo-300"
+                ? "bg-amber-50 border-amber-300 text-amber-800"
+                : "bg-indigo-50 border-indigo-200 text-indigo-700"
             }`}
           >
-            <Clock size={18} className={isCriticalTime ? "animate-spin" : ""} />
+            <Clock size={16} className={isCriticalTime ? "animate-spin" : ""} />
             <span>{timeFormatted}</span>
           </div>
         </div>

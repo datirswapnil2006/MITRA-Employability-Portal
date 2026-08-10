@@ -49,10 +49,10 @@ const SCORING_METHODS = [
   "Likert Weighted Score",
 ];
 
-const inputCls = "w-full px-3 py-2.5 border border-line rounded-xl bg-white text-xs text-ink outline-none focus:border-accent transition-colors";
-const labelCls = "block text-xs font-semibold text-ink-soft uppercase tracking-wide mb-1.5";
-const stampBtn = "bg-accent text-white rounded-xl px-5 py-2.5 font-bold text-xs hover:bg-accent-hover transition-colors flex items-center justify-center gap-2 shadow-sm";
-const ghostBtn = "border border-line rounded-xl px-4 py-2 font-semibold text-xs text-ink hover:border-accent transition-colors";
+const inputCls = "w-full px-3.5 py-2.5 border border-line rounded-xl bg-white text-sm text-ink outline-none focus:border-accent transition-colors placeholder:text-ink-soft/40";
+const labelCls = "block text-xs font-semibold text-ink-soft uppercase tracking-wider mb-1.5";
+const stampBtn = "bg-accent text-white rounded-xl px-5 py-2.5 font-semibold text-xs hover:bg-accent-hover transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+const ghostBtn = "border border-line rounded-xl px-4 py-2.5 font-semibold text-xs text-ink hover:border-accent transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed";
 
 export default function PsychometricWizardModal({
   isOpen,
@@ -67,7 +67,6 @@ export default function PsychometricWizardModal({
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  // Step 1: Basic Info
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [description, setDescription] = useState("");
@@ -78,42 +77,31 @@ export default function PsychometricWizardModal({
   const [instructions, setInstructions] = useState("Answer all statements candidly. There are no right or wrong answers.");
   const [navigationPolicySettings, setNavigationPolicySettings] = useState(DEFAULT_NAVIGATION_POLICY_SETTINGS);
 
-  // Step 2: Select Traits
   const [availableLibraryTraits, setAvailableLibraryTraits] = useState([]);
   const [selectedTraitKeys, setSelectedTraitKeys] = useState([]);
   const [traitSearch, setTraitSearch] = useState("");
 
-  // Step 3: AI Question Generation Config
-  const [aiModel, setAiModel] = useState("auto");
   const [aiDifficulty, setAiDifficulty] = useState("Intermediate");
   const [aiQuestionCount, setAiQuestionCount] = useState(10);
   const [aiLanguage, setAiLanguage] = useState("English");
   const [questionStyle, setQuestionStyle] = useState("mixed");
-  const [includeReverseScored, setIncludeReverseScored] = useState(true);
+  const [autoBalanceTraits, setAutoBalanceTraits] = useState(true);
   const [customPrompt, setCustomPrompt] = useState("");
-  const [promptTemplates, setPromptTemplates] = useState([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState("");
 
-  // Step 4: Questions Review & Authoring
   const [questions, setQuestions] = useState([]);
-  const [editingQuestionIdx, setEditingQuestionIdx] = useState(null);
-  const [editingQuestionObj, setEditingQuestionObj] = useState(null);
   const [showManualAddModal, setShowManualAddModal] = useState(false);
 
-  // Manual Question Builder
   const [mqText, setMqText] = useState("");
   const [mqType, setMqType] = useState("likert");
   const [mqTraitKey, setMqTraitKey] = useState("");
   const [mqReverse, setMqReverse] = useState(false);
   const [mqContext, setMqContext] = useState("");
 
-  // Step 5: Publish Summary
   const [scoringMethod, setScoringMethod] = useState(SCORING_METHODS[0]);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    // Load trait library & prompt templates
     loadLibraryData();
 
     if (initialData) {
@@ -138,18 +126,17 @@ export default function PsychometricWizardModal({
 
   const loadLibraryData = async () => {
     try {
-      const [tData, pData] = await Promise.all([
+      const [tData] = await Promise.all([
         getPsychometricTraits(),
         getPsychometricPromptTemplates(),
       ]);
       setAvailableLibraryTraits(tData);
-      setPromptTemplates(pData);
 
       if (!initialData && tData.length > 0) {
         setSelectedTraitKeys(tData.slice(0, 5).map((t) => t.slug));
       }
     } catch (err) {
-      console.warn("Could not load trait library or prompt templates", err);
+      console.warn("Could not load trait library", err);
     }
   };
 
@@ -180,16 +167,13 @@ export default function PsychometricWizardModal({
     setSelectedTraitKeys(availableLibraryTraits.map((t) => t.slug));
   };
 
-  const handleSelectTemplate = (tmplId) => {
-    setSelectedTemplateId(tmplId);
-    const tmpl = promptTemplates.find((p) => p._id === tmplId);
-    if (tmpl) {
-      setCustomPrompt(tmpl.systemPrompt + (tmpl.customInstructions ? `\nInstructions: ${tmpl.customInstructions}` : ""));
-      if (tmpl.modelPreference) setAiModel(tmpl.modelPreference);
-    }
-  };
-
   const handleGenerateQuestionsWithAI = async () => {
+    const numCount = Number(aiQuestionCount);
+    if (isNaN(numCount) || numCount < 1 || numCount > 50) {
+      setError("Question count must be between 1 and 50.");
+      return;
+    }
+
     if (selectedTraitKeys.length === 0) {
       setError("Please select at least one target trait in Step 2");
       return;
@@ -206,13 +190,12 @@ export default function PsychometricWizardModal({
         category,
         targetTraits: targetTraitsObj,
         questionType: questionStyle,
-        count: Number(aiQuestionCount),
+        count: numCount,
         seniorityLevel: targetAudience,
         difficulty: aiDifficulty,
         language: aiLanguage,
-        includeReverseScored,
+        autoBalanceTraits,
         customPrompt,
-        modelPreference: aiModel,
       });
 
       if (res.drafts && res.drafts.length > 0) {
@@ -246,7 +229,6 @@ export default function PsychometricWizardModal({
         existingQuestion: targetQ,
         difficulty: aiDifficulty,
         language: aiLanguage,
-        modelPreference: aiModel,
       });
 
       if (res.question) {
@@ -373,17 +355,16 @@ export default function PsychometricWizardModal({
 
   return (
     <div
-      className="fixed inset-0 bg-desk/60 flex items-center justify-center p-4 z-50 animate-fadeIn"
+      className="fixed inset-0 bg-desk/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 z-50 animate-fadeIn"
       onClick={onClose}
     >
       <div
-        className="bg-surface rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
+        className="bg-surface rounded-2xl max-w-5xl w-full h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-line"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Wizard Header */}
-        <div className="px-6 py-4 border-b border-line bg-gradient-to-r from-accent/10 via-white to-accent/5 flex items-center justify-between shrink-0">
+        <div className="px-6 py-4 border-b border-line bg-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-accent text-white flex items-center justify-center shadow-md">
+            <div className="w-10 h-10 rounded-xl bg-accent text-white flex items-center justify-center shadow-xs">
               <Brain size={22} />
             </div>
             <div>
@@ -394,14 +375,16 @@ export default function PsychometricWizardModal({
             </div>
           </div>
 
-          <button onClick={onClose} className="p-1.5 rounded-xl text-ink-soft hover:bg-slate-100 transition-colors">
+          <button
+            onClick={onClose}
+            className="p-2 rounded-xl text-ink-soft hover:bg-slate-100 hover:text-ink transition-colors cursor-pointer"
+          >
             <X size={20} />
           </button>
         </div>
 
-        {/* PROGRESS STEPPER HEADER */}
         <div className="bg-slate-50 border-b border-line px-6 py-3 shrink-0 overflow-x-auto">
-          <div className="flex items-center justify-between min-w-[600px]">
+          <div className="flex items-center justify-between min-w-[640px] gap-2">
             {[
               { id: 1, label: "Basic Info", icon: FileText },
               { id: 2, label: "Select Traits", icon: Layers },
@@ -416,67 +399,76 @@ export default function PsychometricWizardModal({
               return (
                 <div key={s.id} className="flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={() => setStep(s.id)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                       isActive
-                        ? "bg-accent text-white shadow-sm"
+                        ? "bg-accent text-white shadow-xs font-bold"
                         : isDone
-                        ? "bg-emerald-100 text-emerald-800"
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold"
                         : "bg-white text-ink-soft border border-line hover:border-accent"
                     }`}
                   >
-                    <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px]">
+                    <span
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                        isActive
+                          ? "bg-white/20 text-white"
+                          : isDone
+                          ? "bg-emerald-600 text-white"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
                       {isDone ? "✓" : s.id}
                     </span>
                     <Icon size={14} />
                     <span>{s.label}</span>
                   </button>
-                  {idx < 4 && <ChevronRight size={14} className="text-slate-300" />}
+                  {idx < 4 && <ChevronRight size={14} className="text-slate-300 shrink-0" />}
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* STEP CONTENT BODY */}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-6 md:p-8 overflow-y-auto flex-1 space-y-6">
           {error && (
-            <div className="bg-danger/10 border border-danger/30 text-danger text-xs px-4 py-2.5 rounded-xl mb-4 flex items-center gap-2">
+            <div className="bg-danger/10 border border-danger/30 text-danger text-xs px-4 py-3 rounded-xl flex items-center gap-2">
               <AlertCircle size={16} /> {error}
             </div>
           )}
 
           {successMsg && (
-            <div className="bg-success/10 border border-success/30 text-success text-xs px-4 py-2.5 rounded-xl mb-4 flex items-center gap-2">
+            <div className="bg-success/10 border border-success/30 text-success text-xs px-4 py-3 rounded-xl flex items-center gap-2">
               <CheckCircle2 size={16} /> {successMsg}
             </div>
           )}
 
-          {/* ========================================== */}
-          {/* STEP 1: BASIC INFORMATION                  */}
-          {/* ========================================== */}
           {step === 1 && (
-            <div className="space-y-4 animate-fadeIn">
-              <div className="border-b border-line pb-3 mb-4">
+            <div className="space-y-6 animate-fadeIn">
+              <div className="border-b border-line pb-3">
                 <h3 className="font-display text-base font-bold text-ink">Step 1: Assessment Basic Information</h3>
-                <p className="text-xs text-ink-soft">
-                  Set target role metadata, category classification, time limits, and instructions.
+                <p className="text-xs text-ink-soft mt-0.5">
+                  Set target role metadata, category classification, time limits, and candidate instructions.
                 </p>
               </div>
 
-              <div>
-                <label className={labelCls}>Assessment Title *</label>
-                <input
-                  className={inputCls}
-                  placeholder="e.g. Big Five Personality & Leadership Competency Profile"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </div>
+              <div className="grid grid-cols-12 gap-5">
+                <div className="col-span-12">
+                  <label className={labelCls}>
+                    Assessment Title <span className="text-rose-500 font-bold">*</span>
+                  </label>
+                  <input
+                    className={inputCls}
+                    placeholder="e.g. Big Five Personality & Leadership Competency Profile"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={labelCls}>Category *</label>
+                <div className="col-span-12 md:col-span-6">
+                  <label className={labelCls}>
+                    Category <span className="text-rose-500 font-bold">*</span>
+                  </label>
                   <select className={inputCls} value={category} onChange={(e) => setCategory(e.target.value)}>
                     {CATEGORIES.map((c) => (
                       <option key={c} value={c}>{c}</option>
@@ -484,8 +476,10 @@ export default function PsychometricWizardModal({
                   </select>
                 </div>
 
-                <div>
-                  <label className={labelCls}>Target Audience / Seniority *</label>
+                <div className="col-span-12 md:col-span-6">
+                  <label className={labelCls}>
+                    Target Audience / Seniority <span className="text-rose-500 font-bold">*</span>
+                  </label>
                   <input
                     className={inputCls}
                     placeholder="e.g. Entry-Level Campus Recruitment"
@@ -493,10 +487,8 @@ export default function PsychometricWizardModal({
                     onChange={(e) => setTargetAudience(e.target.value)}
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
+                <div className="col-span-12 md:col-span-4">
                   <label className={labelCls}>Difficulty Level</label>
                   <select className={inputCls} value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
                     {DIFFICULTIES.map((d) => (
@@ -505,7 +497,7 @@ export default function PsychometricWizardModal({
                   </select>
                 </div>
 
-                <div>
+                <div className="col-span-12 md:col-span-4">
                   <label className={labelCls}>Duration (Minutes)</label>
                   <input
                     type="number"
@@ -516,7 +508,7 @@ export default function PsychometricWizardModal({
                   />
                 </div>
 
-                <div>
+                <div className="col-span-12 md:col-span-4">
                   <label className={labelCls}>Target Question Count</label>
                   <input
                     type="number"
@@ -527,28 +519,27 @@ export default function PsychometricWizardModal({
                     onChange={(e) => setTargetQuestionCount(Number(e.target.value))}
                   />
                 </div>
+
+                <div className="col-span-12">
+                  <label className={labelCls}>Description</label>
+                  <textarea
+                    className={`${inputCls} min-h-[85px] resize-y`}
+                    placeholder="Briefly describe what this psychometric assessment evaluates..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </div>
+
+                <div className="col-span-12">
+                  <label className={labelCls}>Candidate Instructions</label>
+                  <textarea
+                    className={`${inputCls} min-h-[85px] resize-y`}
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value)}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className={labelCls}>Description</label>
-                <textarea
-                  className={`${inputCls} min-h-[70px]`}
-                  placeholder="Briefly describe what this psychometric assessment evaluates..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className={labelCls}>Candidate Instructions</label>
-                <textarea
-                  className={`${inputCls} min-h-[70px]`}
-                  value={instructions}
-                  onChange={(e) => setInstructions(e.target.value)}
-                />
-              </div>
-
-              {/* Assessment Navigation & Behavior Policy Settings */}
               <AssessmentNavigationSettings
                 value={navigationPolicySettings}
                 onChange={setNavigationPolicySettings}
@@ -556,38 +547,34 @@ export default function PsychometricWizardModal({
             </div>
           )}
 
-          {/* ========================================== */}
-          {/* STEP 2: SELECT TRAITS                      */}
-          {/* ========================================== */}
           {step === 2 && (
-            <div className="space-y-4 animate-fadeIn">
+            <div className="space-y-5 animate-fadeIn">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-3">
                 <div>
                   <h3 className="font-display text-base font-bold text-ink">Step 2: Select Trait Dimensions</h3>
-                  <p className="text-xs text-ink-soft">
+                  <p className="text-xs text-ink-soft mt-0.5">
                     Select traits from the central Trait Library to measure in this assessment.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={selectAllTraits}
-                    className="text-xs text-accent font-bold hover:underline"
+                    className="text-xs text-accent font-bold hover:underline cursor-pointer"
                   >
                     Select All
                   </button>
                   <button
                     type="button"
                     onClick={onSwitchToTraitLibrary}
-                    className="border border-line hover:border-accent text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1 bg-white"
+                    className="border border-line hover:border-accent text-xs font-semibold px-3.5 py-2 rounded-xl flex items-center gap-1.5 bg-white transition-colors cursor-pointer"
                   >
                     <Sliders size={13} /> Manage Trait Library
                   </button>
                 </div>
               </div>
 
-              {/* Traits Filter Input */}
               <input
                 className={inputCls}
                 placeholder="Search trait library by name or key..."
@@ -595,8 +582,7 @@ export default function PsychometricWizardModal({
                 onChange={(e) => setTraitSearch(e.target.value)}
               />
 
-              {/* Trait Card Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredTraits.map((t) => {
                   const isChecked = selectedTraitKeys.includes(t.slug);
 
@@ -604,10 +590,10 @@ export default function PsychometricWizardModal({
                     <div
                       key={t.slug}
                       onClick={() => toggleTraitSelection(t.slug)}
-                      className={`border rounded-2xl p-4 cursor-pointer transition-all ${
+                      className={`border rounded-xl p-4 cursor-pointer transition-all ${
                         isChecked
-                          ? "bg-accent/5 border-accent shadow-sm"
-                          : "bg-white border-line hover:border-slate-300"
+                          ? "bg-accent/5 border-accent shadow-xs"
+                          : "bg-white border-line hover:border-slate-300 hover:shadow-2xs"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -625,88 +611,65 @@ export default function PsychometricWizardModal({
                         {t.slug}
                       </div>
 
-                      <p className="text-[11px] text-ink-soft line-clamp-2">{t.description || "Psychometric dimension"}</p>
+                      <p className="text-xs text-ink-soft leading-relaxed line-clamp-2">
+                        {t.description || "Psychometric behavioral dimension"}
+                      </p>
                     </div>
                   );
                 })}
               </div>
 
-              <div className="text-xs text-ink-soft font-semibold pt-2 border-t border-line">
+              <div className="text-xs text-ink-soft font-semibold pt-3 border-t border-line">
                 Selected <span className="text-accent font-bold">{selectedTraitKeys.length}</span> trait(s) for evaluation.
               </div>
             </div>
           )}
 
-          {/* ========================================== */}
-          {/* STEP 3: AI QUESTION GENERATION CONFIG      */}
-          {/* ========================================== */}
           {step === 3 && (
             <div className="space-y-5 animate-fadeIn">
               <div className="border-b border-line pb-3">
                 <h3 className="font-display text-base font-bold text-ink flex items-center gap-2">
-                  <Sparkles size={18} className="text-accent" /> Step 3: AI Question Generation Configuration
+                  <Sparkles size={18} className="text-accent" /> Step 3: Generate Questions
                 </h3>
-                <p className="text-xs text-ink-soft">
-                  Configure AI prompt parameters, model execution, question styles, and reverse-score balancing.
+                <p className="text-xs text-ink-soft mt-0.5">
+                  Configure question format, question volume, language, and trait balancing parameters.
                 </p>
               </div>
 
-              {/* Prompt Template Preset Selector */}
-              {promptTemplates.length > 0 && (
-                <div className="bg-slate-50 border border-line rounded-2xl p-3.5">
-                  <label className={labelCls}>Load AI Prompt Template (Optional)</label>
+              <div className="grid grid-cols-12 gap-5">
+                <div className="col-span-12 md:col-span-6">
+                  <label className={labelCls}>Question Type / Format</label>
                   <select
                     className={inputCls}
-                    value={selectedTemplateId}
-                    onChange={(e) => handleSelectTemplate(e.target.value)}
+                    value={questionStyle}
+                    onChange={(e) => setQuestionStyle(e.target.value)}
                   >
-                    <option value="">Choose pre-saved template...</option>
-                    {promptTemplates.map((p) => (
-                      <option key={p._id} value={p._id}>
-                        {p.title} ({p.category})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className={labelCls}>AI Engine Provider</label>
-                  <select className={inputCls} value={aiModel} onChange={(e) => setAiModel(e.target.value)}>
-                    <option value="auto">Auto Multi-Provider Fallback</option>
-                    <option value="gemini">Google Gemini 1.5</option>
-                    <option value="groq">Groq Llama-3 70B</option>
-                    <option value="huggingface">Hugging Face API</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className={labelCls}>Question Style / Format</label>
-                  <select className={inputCls} value={questionStyle} onChange={(e) => setQuestionStyle(e.target.value)}>
-                    <option value="mixed">Mixed Formats</option>
-                    <option value="likert">Likert 5-Point Scale</option>
+                    <option value="likert">Likert Scale</option>
                     <option value="forced_choice">Forced Choice Pairs</option>
-                    <option value="situational_judgment">Situational Judgment</option>
+                    <option value="situational_judgment">Situational Judgment (SJT)</option>
+                    <option value="mixed">Mixed</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className={labelCls}>Question Count (1-20)</label>
+                <div className="col-span-12 md:col-span-6">
+                  <label className={labelCls}>Number of Questions (1 - 50)</label>
                   <input
                     type="number"
                     min={1}
-                    max={20}
+                    max={50}
                     className={inputCls}
                     value={aiQuestionCount}
-                    onChange={(e) => setAiQuestionCount(Math.min(20, Math.max(1, Number(e.target.value))))}
+                    onChange={(e) => setAiQuestionCount(e.target.value)}
                   />
+                  {(Number(aiQuestionCount) < 1 || Number(aiQuestionCount) > 50 || isNaN(Number(aiQuestionCount))) && (
+                    <p className="text-[11px] text-danger mt-1 font-semibold">
+                      Question count must be between 1 and 50.
+                    </p>
+                  )}
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={labelCls}>Question Language</label>
+                <div className="col-span-12 md:col-span-6">
+                  <label className={labelCls}>Language</label>
                   <select className={inputCls} value={aiLanguage} onChange={(e) => setAiLanguage(e.target.value)}>
                     {LANGUAGES.map((l) => (
                       <option key={l} value={l}>{l}</option>
@@ -714,67 +677,66 @@ export default function PsychometricWizardModal({
                   </select>
                 </div>
 
-                <div>
-                  <label className={labelCls}>Assessment Difficulty</label>
+                <div className="col-span-12 md:col-span-6">
+                  <label className={labelCls}>Difficulty</label>
                   <select className={inputCls} value={aiDifficulty} onChange={(e) => setAiDifficulty(e.target.value)}>
-                    {DIFFICULTIES.map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
+                    <option value="Easy">Easy</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Hard">Hard</option>
                   </select>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-3 bg-slate-50 border border-line p-3.5 rounded-xl">
-                <input
-                  type="checkbox"
-                  id="revToggle"
-                  checked={includeReverseScored}
-                  onChange={(e) => setIncludeReverseScored(e.target.checked)}
-                  className="w-4 h-4 accent-accent"
-                />
-                <div>
-                  <label htmlFor="revToggle" className="font-bold text-xs text-ink cursor-pointer">
-                    Balance Positive & Reverse-Scored Questions
-                  </label>
-                  <p className="text-[11px] text-ink-soft">
-                    Detect acquiscence bias by automatically generating inverted behavioral statements.
-                  </p>
+                <div className="col-span-12">
+                  <label className={labelCls}>Optional AI Instructions</label>
+                  <textarea
+                    className={`${inputCls} min-h-[85px] font-mono text-xs resize-y`}
+                    placeholder="Provide additional requirements or guidelines for AI question generation (Optional)..."
+                    value={customPrompt}
+                    onChange={(e) => setCustomPrompt(e.target.value)}
+                  />
+                </div>
+
+                <div className="col-span-12 bg-slate-50 border border-line p-4 rounded-xl flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="autoBalanceToggle"
+                    checked={autoBalanceTraits}
+                    onChange={(e) => setAutoBalanceTraits(e.target.checked)}
+                    className="w-4 h-4 accent-accent cursor-pointer"
+                  />
+                  <div>
+                    <label htmlFor="autoBalanceToggle" className="font-bold text-xs text-ink cursor-pointer">
+                      Automatically balance questions across selected traits
+                    </label>
+                    <p className="text-[11px] text-ink-soft leading-tight mt-0.5">
+                      Distributes the requested question count as evenly as possible across selected traits.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="col-span-12 pt-2">
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={handleGenerateQuestionsWithAI}
+                    className="w-full bg-accent hover:bg-accent-hover text-white rounded-xl h-11 font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Generating {aiQuestionCount} Psychometric Items with AI...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={16} /> Generate Questions with AI
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
-
-              <div>
-                <label className={labelCls}>Custom AI Prompt Guidelines (Optional)</label>
-                <textarea
-                  className={`${inputCls} min-h-[80px] font-mono`}
-                  placeholder="e.g. Focus on high-stress software engineering incidents and team collaboration..."
-                  value={customPrompt}
-                  onChange={(e) => setCustomPrompt(e.target.value)}
-                />
-              </div>
-
-              <button
-                type="button"
-                disabled={loading}
-                onClick={handleGenerateQuestionsWithAI}
-                className="w-full bg-gradient-to-r from-accent via-indigo-600 to-accent text-white rounded-xl py-3.5 font-bold text-sm hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-lg"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Generating {aiQuestionCount} Psychometric Items with AI...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={18} /> ✨ Generate Questions with AI
-                  </>
-                )}
-              </button>
             </div>
           )}
 
-          {/* ========================================== */}
-          {/* STEP 4: REVIEW QUESTIONS                  */}
-          {/* ========================================== */}
           {step === 4 && (
             <div className="space-y-4 animate-fadeIn">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-3">
@@ -782,7 +744,7 @@ export default function PsychometricWizardModal({
                   <h3 className="font-display text-base font-bold text-ink">
                     Step 4: Review Authored Items ({questions.length})
                   </h3>
-                  <p className="text-xs text-ink-soft">
+                  <p className="text-xs text-ink-soft mt-0.5">
                     Inspect generated cards, edit statements, regenerate individual items, or add manually.
                   </p>
                 </div>
@@ -791,7 +753,7 @@ export default function PsychometricWizardModal({
                   <button
                     type="button"
                     onClick={() => setShowManualAddModal(true)}
-                    className="border border-line hover:border-accent text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-1 bg-white"
+                    className="border border-line hover:border-accent text-xs font-semibold px-3.5 py-2 rounded-xl flex items-center gap-1.5 bg-white transition-colors cursor-pointer"
                   >
                     <Plus size={14} /> Add New Question
                   </button>
@@ -799,27 +761,26 @@ export default function PsychometricWizardModal({
                     type="button"
                     onClick={handleGenerateQuestionsWithAI}
                     disabled={loading}
-                    className="bg-accent/10 text-accent font-bold hover:bg-accent hover:text-white text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all"
+                    className="bg-accent/10 text-accent font-bold hover:bg-accent hover:text-white text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
                   >
                     <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Regenerate All
                   </button>
                 </div>
               </div>
 
-              {/* Questions Cards List */}
               {questions.length === 0 ? (
                 <div className="bg-white border border-line rounded-2xl p-10 text-center text-xs text-ink-soft">
                   No questions yet. Click "Regenerate All" or go back to Step 3 to generate items with AI.
                 </div>
               ) : (
-                <div className="space-y-3 max-h-[52vh] overflow-y-auto pr-1">
+                <div className="space-y-3.5">
                   {questions.map((q, idx) => {
                     const isRegening = singleRegenIdx === idx;
 
                     return (
                       <div
                         key={idx}
-                        className="bg-white border border-line rounded-2xl p-4.5 hover:shadow-md transition-all space-y-2"
+                        className="bg-white border border-line rounded-xl p-4.5 hover:shadow-xs transition-all space-y-3"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex flex-wrap items-center gap-2">
@@ -827,22 +788,22 @@ export default function PsychometricWizardModal({
                             <span className="font-mono text-[10px] uppercase font-bold text-accent bg-accent/10 px-2 py-0.5 rounded">
                               {q.type}
                             </span>
-                            <span className="font-mono text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                            <span className="font-mono text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                               Trait: {q.traitKey}
                             </span>
                             {q.isReverseScored && (
-                              <span className="font-mono text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
+                              <span className="font-mono text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                                 Reverse Scored
                               </span>
                             )}
                           </div>
 
-                          <div className="flex items-center gap-1 shrink-0">
+                          <div className="flex items-center gap-1.5 shrink-0">
                             <button
                               type="button"
                               onClick={() => handleRegenerateSingleQuestion(idx)}
                               disabled={isRegening}
-                              className="p-1.5 border border-line rounded-lg hover:border-accent text-ink-soft hover:text-accent transition-colors text-[11px] flex items-center gap-1"
+                              className="p-1.5 border border-line rounded-lg hover:border-accent text-ink-soft hover:text-accent transition-colors text-[11px] flex items-center gap-1 cursor-pointer"
                               title="Regenerate single question with AI"
                             >
                               <RefreshCw size={13} className={isRegening ? "animate-spin" : ""} />
@@ -851,7 +812,7 @@ export default function PsychometricWizardModal({
                             <button
                               type="button"
                               onClick={() => handleSaveQuestionToBank(q)}
-                              className="p-1.5 border border-line rounded-lg hover:border-accent text-ink-soft hover:text-accent transition-colors text-[11px]"
+                              className="p-1.5 border border-line rounded-lg hover:border-accent text-ink-soft hover:text-accent transition-colors text-[11px] cursor-pointer"
                               title="Save to Question Bank"
                             >
                               Bank
@@ -859,7 +820,7 @@ export default function PsychometricWizardModal({
                             <button
                               type="button"
                               onClick={() => setQuestions((prev) => prev.filter((_, i) => i !== idx))}
-                              className="p-1.5 border border-danger/30 text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                              className="p-1.5 border border-danger/30 text-danger hover:bg-danger/10 rounded-lg transition-colors cursor-pointer"
                             >
                               <Trash2 size={13} />
                             </button>
@@ -867,12 +828,11 @@ export default function PsychometricWizardModal({
                         </div>
 
                         {q.situationContext && (
-                          <p className="text-xs text-slate-600 italic bg-slate-50 border-l-2 border-accent pl-3 py-1.5 rounded-r">
+                          <p className="text-xs text-slate-600 italic bg-slate-50 border-l-2 border-accent pl-3 py-2 rounded-r">
                             Scenario: "{q.situationContext}"
                           </p>
                         )}
 
-                        {/* Inline Editable Question Text */}
                         <textarea
                           className="w-full text-xs font-medium text-ink bg-slate-50/50 border border-line rounded-xl p-2.5 outline-none focus:bg-white focus:border-accent transition-colors"
                           value={q.questionText}
@@ -886,8 +846,8 @@ export default function PsychometricWizardModal({
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                             {q.options.map((opt, oIdx) => (
                               <div key={oIdx} className="bg-slate-50 border border-line rounded-lg p-2 text-[11px] flex justify-between">
-                                <span>{opt.optionText}</span>
-                                <span className="font-mono text-accent font-bold">+{opt.score}</span>
+                                <span>{typeof opt === "string" ? opt : opt.optionText}</span>
+                                <span className="font-mono text-accent font-bold">+{typeof opt === "string" ? oIdx + 1 : opt.score}</span>
                               </div>
                             ))}
                           </div>
@@ -900,19 +860,15 @@ export default function PsychometricWizardModal({
             </div>
           )}
 
-          {/* ========================================== */}
-          {/* STEP 5: PUBLISH & SUMMARY                 */}
-          {/* ========================================== */}
           {step === 5 && (
             <div className="space-y-5 animate-fadeIn">
               <div className="border-b border-line pb-3">
                 <h3 className="font-display text-base font-bold text-ink">Step 5: Assessment Summary & Publish</h3>
-                <p className="text-xs text-ink-soft">
+                <p className="text-xs text-ink-soft mt-0.5">
                   Review final assessment details before saving draft or making live for candidate attempts.
                 </p>
               </div>
 
-              {/* Assessment Summary Card */}
               <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-6 shadow-xl space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-700 pb-3">
                   <div>
@@ -946,7 +902,6 @@ export default function PsychometricWizardModal({
                   </div>
                 </div>
 
-                {/* Scoring Method */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
                     Scoring Engine Method
@@ -962,7 +917,6 @@ export default function PsychometricWizardModal({
                   </select>
                 </div>
 
-                {/* Selected Traits Badges */}
                 <div>
                   <div className="text-xs text-slate-400 font-semibold mb-2">Evaluated Personality & Behavioral Traits:</div>
                   <div className="flex flex-wrap gap-2">
@@ -981,13 +935,12 @@ export default function PsychometricWizardModal({
           )}
         </div>
 
-        {/* STEPPER FOOTER BUTTONS */}
-        <div className="px-6 py-4 border-t border-line bg-white flex items-center justify-between shrink-0">
+        <div className="px-6 py-4 border-t border-line bg-white/95 backdrop-blur-md flex items-center justify-between shrink-0 sticky bottom-0 z-20">
           <button
             type="button"
             disabled={step === 1 || loading}
             onClick={() => setStep((s) => s - 1)}
-            className={ghostBtn + " flex items-center gap-1 disabled:opacity-40"}
+            className={ghostBtn + " flex items-center gap-1.5"}
           >
             <ChevronLeft size={16} /> Back
           </button>
@@ -1025,18 +978,17 @@ export default function PsychometricWizardModal({
         </div>
       </div>
 
-      {/* Manual Add Question Drawer */}
       {showManualAddModal && (
-        <div className="fixed inset-0 bg-desk/60 flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 bg-desk/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-line">
             <div className="flex items-center justify-between border-b border-line pb-3">
               <h3 className="font-display text-base font-bold text-ink">Add Manual Question</h3>
-              <button onClick={() => setShowManualAddModal(false)} className="text-ink-soft hover:text-ink">
+              <button onClick={() => setShowManualAddModal(false)} className="text-ink-soft hover:text-ink cursor-pointer">
                 <X size={18} />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="space-y-3.5 text-xs">
               <div>
                 <label className={labelCls}>Format</label>
                 <select className={inputCls} value={mqType} onChange={(e) => setMqType(e.target.value)}>
@@ -1058,7 +1010,7 @@ export default function PsychometricWizardModal({
               <div>
                 <label className={labelCls}>Question Text *</label>
                 <textarea
-                  className={`${inputCls} min-h-[60px]`}
+                  className={`${inputCls} min-h-[70px] resize-y`}
                   value={mqText}
                   onChange={(e) => setMqText(e.target.value)}
                 />
