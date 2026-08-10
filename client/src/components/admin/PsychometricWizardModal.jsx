@@ -7,6 +7,7 @@ import {
   regenerateSinglePsychometricQuestionApi,
   createPsychometric,
   updatePsychometric,
+  getPsychometric,
   savePsychometricQuestionBankItem,
 } from "../../api/admin";
 import {
@@ -63,6 +64,8 @@ export default function PsychometricWizardModal({
 }) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [fetchingAssessment, setFetchingAssessment] = useState(false);
+  const [existingAssessment, setExistingAssessment] = useState(null);
   const [singleRegenIdx, setSingleRegenIdx] = useState(null);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -104,22 +107,45 @@ export default function PsychometricWizardModal({
 
     loadLibraryData();
 
-    if (initialData) {
-      setTitle(initialData.title || "");
-      setCategory(initialData.category || CATEGORIES[0]);
-      setDescription(initialData.description || "");
-      setDurationMinutes(initialData.durationMinutes || 15);
-      setTargetAudience(initialData.targetAudience || "Entry-Level Campus Recruitment");
-      setDifficulty(initialData.difficulty || "Intermediate");
-      setTargetQuestionCount(initialData.targetQuestionCount || 10);
-      setInstructions(initialData.instructions || "Answer all statements candidly.");
-      setScoringMethod(initialData.scoringMethod || SCORING_METHODS[0]);
-      setQuestions(initialData.questions || []);
+    if (initialData && initialData._id) {
+      setFetchingAssessment(true);
+      setError("");
+      getPsychometric(initialData._id)
+        .then((data) => {
+          setExistingAssessment(data);
+          setTitle(data.title || "");
+          setCategory(data.category || CATEGORIES[0]);
+          setDescription(data.description || "");
+          setDurationMinutes(data.durationMinutes || 15);
+          setTargetAudience(data.targetAudience || "Entry-Level Campus Recruitment");
+          setDifficulty(data.difficulty || "Intermediate");
+          setTargetQuestionCount(data.targetQuestionCount || 10);
+          setInstructions(data.instructions || "Answer all statements candidly. There are no right or wrong answers.");
+          setScoringMethod(data.scoringMethod || SCORING_METHODS[0]);
+          setAiLanguage(data.language || "English");
+          setAiDifficulty(data.difficulty || "Intermediate");
+          setNavigationPolicySettings(data.navigationPolicySettings || DEFAULT_NAVIGATION_POLICY_SETTINGS);
+          setQuestions(data.questions || []);
+          setAiQuestionCount(data.questions?.length || data.targetQuestionCount || 10);
 
-      if (initialData.traits && initialData.traits.length > 0) {
-        setSelectedTraitKeys(initialData.traits.map((t) => t.key));
-      }
+          if (data.traits && data.traits.length > 0) {
+            setSelectedTraitKeys(data.traits.map((t) => t.key));
+          } else {
+            setSelectedTraitKeys([]);
+          }
+
+          // Open directly at STEP 4 — Review Items
+          setStep(4);
+        })
+        .catch((err) => {
+          console.error("Failed to fetch psychometric assessment", err);
+          setError(err.response?.data?.message || "Failed to load existing assessment details");
+        })
+        .finally(() => {
+          setFetchingAssessment(false);
+        });
     } else {
+      setExistingAssessment(null);
       resetWizard();
     }
   }, [isOpen, initialData]);
@@ -295,15 +321,17 @@ export default function PsychometricWizardModal({
     setLoading(true);
     setError("");
 
-    const traitsPayload = availableLibraryTraits
-      .filter((t) => selectedTraitKeys.includes(t.slug))
-      .map((t) => ({
-        name: t.name,
-        key: t.slug,
-        description: t.description || "",
-        minScore: t.minScore || 1,
-        maxScore: t.maxScore || 5,
-      }));
+    const traitsPayload = selectedTraitKeys.map((key) => {
+      const libTrait = availableLibraryTraits.find((t) => t.slug === key);
+      const existTrait = (existingAssessment?.traits || initialData?.traits || []).find((t) => t.key === key);
+      return {
+        name: libTrait ? libTrait.name : existTrait ? existTrait.name : key,
+        key: key,
+        description: libTrait ? libTrait.description : existTrait ? existTrait.description || "" : "",
+        minScore: libTrait ? libTrait.minScore : existTrait ? existTrait.minScore || 1 : 1,
+        maxScore: libTrait ? libTrait.maxScore : existTrait ? existTrait.maxScore || 5 : 5,
+      };
+    });
 
     const sanitizedQuestions = questions.map((q) => {
       const copy = { ...q };
@@ -368,9 +396,13 @@ export default function PsychometricWizardModal({
               <Brain size={22} />
             </div>
             <div>
-              <h2 className="font-display text-lg font-bold text-ink">AI Assessment Creation Wizard</h2>
+              <h2 className="font-display text-lg font-bold text-ink">
+                {initialData?._id ? "Edit Assessment" : "AI Assessment Creation Wizard"}
+              </h2>
               <p className="text-xs text-ink-soft">
-                Psychometric & Behavioral Management · 5-Step AI Workflow
+                {initialData?._id
+                  ? `Review & Edit Existing Assessment · ID: ${initialData._id}`
+                  : "Psychometric & Behavioral Management · 5-Step AI Workflow"}
               </p>
             </div>
           </div>
@@ -431,6 +463,14 @@ export default function PsychometricWizardModal({
         </div>
 
         <div className="p-6 md:p-8 overflow-y-auto flex-1 space-y-6">
+          {fetchingAssessment ? (
+            <div className="py-20 flex flex-col items-center justify-center space-y-3">
+              <div className="w-10 h-10 border-4 border-accent/30 border-t-accent rounded-full animate-spin" />
+              <p className="font-bold text-sm text-ink">Loading assessment...</p>
+              <p className="text-xs text-ink-soft">Fetching complete assessment details, traits, and questions.</p>
+            </div>
+          ) : (
+            <>
           {error && (
             <div className="bg-danger/10 border border-danger/30 text-danger text-xs px-4 py-3 rounded-xl flex items-center gap-2">
               <AlertCircle size={16} /> {error}
@@ -739,6 +779,12 @@ export default function PsychometricWizardModal({
 
           {step === 4 && (
             <div className="space-y-4 animate-fadeIn">
+              {initialData?._id && (
+                <div className="bg-accent/10 border border-accent/30 text-accent text-xs px-4 py-2.5 rounded-xl font-medium flex items-center justify-between">
+                  <span>Editing existing assessment questions. Changes will update the assessment without regenerating items.</span>
+                  <span className="font-mono text-[10px] bg-accent/20 px-2 py-0.5 rounded font-bold uppercase">Edit Mode</span>
+                </div>
+              )}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line pb-3">
                 <div>
                   <h3 className="font-display text-base font-bold text-ink">
@@ -819,8 +865,13 @@ export default function PsychometricWizardModal({
                             </button>
                             <button
                               type="button"
-                              onClick={() => setQuestions((prev) => prev.filter((_, i) => i !== idx))}
+                              onClick={() => {
+                                if (window.confirm(`Are you sure you want to remove Question ${idx + 1}?`)) {
+                                  setQuestions((prev) => prev.filter((_, i) => i !== idx));
+                                }
+                              }}
                               className="p-1.5 border border-danger/30 text-danger hover:bg-danger/10 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Question"
                             >
                               <Trash2 size={13} />
                             </button>
@@ -932,6 +983,8 @@ export default function PsychometricWizardModal({
                 </div>
               </div>
             </div>
+          )}
+          </>
           )}
         </div>
 

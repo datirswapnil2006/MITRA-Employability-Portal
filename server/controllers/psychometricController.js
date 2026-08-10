@@ -124,7 +124,23 @@ export const getPsychometricById = async (req, res) => {
 // @route POST /api/psychometric   (admin)
 export const createPsychometric = async (req, res) => {
   try {
-    const { title, description, instructions, durationMinutes, category, traits, questions, navigationPolicySettings } = req.body;
+    const {
+      title,
+      description,
+      instructions,
+      durationMinutes,
+      category,
+      targetAudience,
+      difficulty,
+      scoringMethod,
+      language,
+      targetQuestionCount,
+      status,
+      isEnabled,
+      traits,
+      questions,
+      navigationPolicySettings,
+    } = req.body;
     if (!title || !category) {
       return res.status(400).json({ message: "Title and category are required" });
     }
@@ -142,8 +158,13 @@ export const createPsychometric = async (req, res) => {
       instructions: instructions || "Answer all questions candidly. There are no right or wrong answers.",
       durationMinutes: Number(durationMinutes) || 15,
       category,
-      status: "draft",
-      isEnabled: false,
+      targetAudience: targetAudience || "Entry-Level Campus Recruitment",
+      difficulty: difficulty || "Intermediate",
+      scoringMethod: scoringMethod || "Normative Trait Aggregate",
+      language: language || "English",
+      targetQuestionCount: Number(targetQuestionCount) || finalQuestions.length || 10,
+      status: status || "draft",
+      isEnabled: isEnabled !== undefined ? Boolean(isEnabled) : status === "published",
       traits: finalTraits,
       questions: finalQuestions,
       navigationPolicySettings: navigationPolicySettings || {},
@@ -159,7 +180,23 @@ export const createPsychometric = async (req, res) => {
 // @route PUT /api/psychometric/:id   (admin)
 export const updatePsychometric = async (req, res) => {
   try {
-    const { title, description, instructions, durationMinutes, category, traits, questions, navigationPolicySettings } = req.body;
+    const {
+      title,
+      description,
+      instructions,
+      durationMinutes,
+      category,
+      targetAudience,
+      difficulty,
+      scoringMethod,
+      language,
+      targetQuestionCount,
+      status,
+      isEnabled,
+      traits,
+      questions,
+      navigationPolicySettings,
+    } = req.body;
 
     const test = await PsychometricTest.findById(req.params.id);
     if (!test) return res.status(404).json({ message: "Psychometric assessment not found" });
@@ -169,6 +206,13 @@ export const updatePsychometric = async (req, res) => {
     if (instructions !== undefined) test.instructions = instructions;
     if (durationMinutes !== undefined) test.durationMinutes = Number(durationMinutes);
     if (category) test.category = category;
+    if (targetAudience !== undefined) test.targetAudience = targetAudience;
+    if (difficulty !== undefined) test.difficulty = difficulty;
+    if (scoringMethod !== undefined) test.scoringMethod = scoringMethod;
+    if (language !== undefined) test.language = language;
+    if (targetQuestionCount !== undefined) test.targetQuestionCount = Number(targetQuestionCount);
+    if (status !== undefined) test.status = status;
+    if (isEnabled !== undefined) test.isEnabled = Boolean(isEnabled);
     if (Array.isArray(traits)) test.traits = traits;
     if (Array.isArray(questions)) test.questions = sanitizeQuestions(questions);
     if (navigationPolicySettings !== undefined) test.navigationPolicySettings = navigationPolicySettings;
