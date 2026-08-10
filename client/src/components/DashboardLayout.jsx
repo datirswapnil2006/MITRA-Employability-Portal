@@ -115,7 +115,7 @@ export default function DashboardLayout({ active, links, onNavigate, children })
     const childActive = hasChildren && isChildActive(link);
 
     return (
-      <div key={link.key} className="w-full">
+      <div key={link.key} className="w-full min-w-0">
         <button
           title={isCollapsed ? link.label : undefined}
           onClick={() => {
@@ -130,8 +130,8 @@ export default function DashboardLayout({ active, links, onNavigate, children })
             }
           }}
           className={`
-            group flex items-center w-full text-left transition-all duration-300 ease-in-out rounded-xl text-[13px] font-medium
-            ${isCollapsed ? "justify-center p-2.5" : depth === 0 ? "px-3 py-2 gap-2.5" : "pl-9 pr-3 py-1.5 gap-2"}
+            group flex items-center w-full min-w-0 text-left transition-all duration-300 ease-in-out rounded-xl text-[13px] font-medium
+            ${isCollapsed ? "justify-center p-2.5" : depth === 0 ? "px-3 py-2 gap-2.5" : "pl-7 pr-2.5 py-1.5 gap-2"}
             ${
               isActive
                 ? "bg-blue-600 text-white shadow-md shadow-blue-500/25 font-semibold"
@@ -152,14 +152,14 @@ export default function DashboardLayout({ active, links, onNavigate, children })
 
           {!isCollapsed && (
             <>
-              <span className="flex-1 truncate">{link.label}</span>
+              <span className="flex-1 min-w-0 truncate">{link.label}</span>
               {isActive && (
-                <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0 animate-pulse ml-0.5" />
               )}
               {hasChildren && (
                 groupOpen
-                  ? <ChevronDown size={13} className="shrink-0 text-slate-400" />
-                  : <ChevronRight size={13} className="shrink-0 text-slate-400" />
+                  ? <ChevronDown size={13} className="shrink-0 text-slate-400 ml-0.5" />
+                  : <ChevronRight size={13} className="shrink-0 text-slate-400 ml-0.5" />
               )}
             </>
           )}
@@ -175,7 +175,7 @@ export default function DashboardLayout({ active, links, onNavigate, children })
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-slate-900 text-slate-100 border-r border-slate-800 transition-all duration-300 ease-in-out select-none">
+    <div className="flex flex-col h-full w-full max-w-full bg-slate-900 text-slate-100 border-r border-slate-800 transition-all duration-300 ease-in-out select-none overflow-hidden">
       {/* Brand Header */}
       <div className={`p-3.5 border-b border-slate-800/80 bg-slate-950/40 flex items-center ${isCollapsed ? "justify-center" : "justify-between"}`}>
         {isCollapsed ? (
@@ -332,7 +332,12 @@ export default function DashboardLayout({ active, links, onNavigate, children })
               <Logo size="sm" showSubtitle={false} />
               <span className="text-slate-300 dark:text-slate-700 font-light">/</span>
               <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 capitalize truncate">
-                {active?.replace(/-/g, " ") || "Dashboard"}
+                {active
+                  ? active
+                      .split("/")
+                      .map((s) => s.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()))
+                      .join(" / ")
+                  : "Dashboard"}
               </span>
             </div>
           </div>
