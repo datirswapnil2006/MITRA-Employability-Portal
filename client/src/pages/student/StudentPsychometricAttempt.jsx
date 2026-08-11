@@ -64,6 +64,7 @@ export default function StudentPsychometricAttempt() {
     async (exitReason = "Manual Submission", auditLogs = [], violationCount = 0) => {
       if (!attemptId || submitting) return;
       setSubmitting(true);
+      proctorState.stopAllProctoring();
       try {
         await submitPsychometricAttempt(attemptId, { exitReason, auditLogs, violationCount });
         navigate("/student/psychometric");
@@ -72,7 +73,7 @@ export default function StudentPsychometricAttempt() {
         navigate("/student/psychometric");
       }
     },
-    [attemptId, submitting, navigate]
+    [attemptId, submitting, navigate, proctorState]
   );
 
   const {
@@ -465,7 +466,6 @@ export default function StudentPsychometricAttempt() {
           setInitialScreenStream(screenStream);
           setSecurityVerified(true);
           setShowPreTestModal(false);
-          document.documentElement.requestFullscreen?.().catch(() => {});
         }}
       />
 
@@ -478,6 +478,10 @@ export default function StudentPsychometricAttempt() {
           gazeStatus={proctorState.gazeStatus}
           violationCount={proctorState.violationCount}
           warningMessage={proctorState.warningMessage}
+          isFullscreenActive={proctorState.isFullscreenActive}
+          isScreenShareActive={proctorState.isScreenShareActive}
+          onReEnterFullscreen={proctorState.reEnterFullscreen}
+          onResumeScreenShare={proctorState.resumeScreenShare}
           onDismissWarning={proctorState.dismissWarning}
         />
       )}

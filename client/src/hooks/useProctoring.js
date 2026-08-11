@@ -17,13 +17,33 @@ export default function useProctoring(
   const [gazeStatus, setGazeStatus] = useState("centered"); // centered | looking_away
   const [violationCount, setViolationCount] = useState(0);
   const [warningMessage, setWarningMessage] = useState(null);
+  const [isFullscreenActive, setIsFullscreenActive] = useState(Boolean(document.fullscreenElement));
+  const [isScreenShareActive, setIsScreenShareActive] = useState(Boolean(initialScreenStream));
 
   const lastLoggedRef = useRef({});
   const videoRef = useRef(null);
   const streamRef = useRef(initialStream);
+  const screenStreamRef = useRef(initialScreenStream);
   const intervalRef = useRef(null);
   const modelsReadyRef = useRef(false);
   const terminatedRef = useRef(false);
+  const cleanedUpRef = useRef(false);
+
+  // Sync refs when props change
+  useEffect(() => {
+    if (initialStream) {
+      streamRef.current = initialStream;
+      setStream(initialStream);
+    }
+  }, [initialStream]);
+
+  useEffect(() => {
+    if (initialScreenStream) {
+      screenStreamRef.current = initialScreenStream;
+      setScreenStream(initialScreenStream);
+      setIsScreenShareActive(true);
+    }
+  }, [initialScreenStream]);
 
   // Consecutive trackers for robust debouncing
   const noFaceCountRef = useRef(0);
@@ -38,7 +58,7 @@ export default function useProctoring(
 
   const log = useCallback(
     (type, detail = "") => {
-      if (!attemptId || terminatedRef.current) return;
+      if (!attemptId || terminatedRef.current || !enabled) return;
       const now = Date.now();
       const last = lastLoggedRef.current[type] || 0;
       if (now - last < EVENT_COOLDOWN_MS) return;
@@ -53,8 +73,65 @@ export default function useProctoring(
         }
       });
     },
-    [attemptId, onAutoSubmit]
+    [attemptId, enabled, onAutoSubmit]
   );
+
+  // Stop all proctoring media streams and clean up browser state safely
+  const stopAllProctoring = useCallback(() => {
+    if (cleanedUpRef.current) return;
+    cleanedUpRef.current = true;
+
+    // 1. Clear detection loop interval
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    // 2. Stop camera and microphone tracks
+    if (streamRef.current) {
+      try {
+        streamRef.current.getTracks().forEach((track) => {
+          track.stop();
+        });
+      } catch (err) {
+        console.warn("Error stopping camera tracks:", err);
+      }
+      streamRef.current = null;
+      setStream(null);
+    }
+
+    // 3. Stop screen sharing tracks
+    if (screenStreamRef.current) {
+      try {
+        screenStreamRef.current.getTracks().forEach((track) => {
+          track.stop();
+        });
+      } catch (err) {
+        console.warn("Error stopping screen share tracks:", err);
+      }
+      screenStreamRef.current = null;
+      setScreenStream(null);
+      setIsScreenShareActive(false);
+    }
+
+    // 4. Detach video element
+    if (videoRef.current) {
+      try {
+        videoRef.current.pause();
+        videoRef.current.srcObject = null;
+      } catch (err) {
+        // ignore
+      }
+      videoRef.current = null;
+    }
+
+    // 5. Exit fullscreen cleanly if active
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
+    }
+
+    setCameraStatus("error");
+  }, []);
 
   // Screen sharing track ended listener
   useEffect(() => {
@@ -63,6 +140,7 @@ export default function useProctoring(
     if (tracks.length === 0) return;
 
     const handleScreenEnded = () => {
+      setIsScreenShareActive(false);
       setCameraStatus("warning");
       setWarningMessage("⚠️ Screen Sharing Stopped! Maintaining active screen share is required.");
       log("screen_share_interrupted", "Candidate stopped screen sharing track");
@@ -85,7 +163,9 @@ export default function useProctoring(
       }
     };
     const handleFullscreenChange = () => {
-      if (!document.fullscreenElement) {
+      const isFs = Boolean(document.fullscreenElement);
+      setIsFullscreenActive(isFs);
+      if (!isFs && !cleanedUpRef.current) {
         setWarningMessage("⚠️ Full-Screen Exited! Please return to full-screen mode immediately.");
         log("fullscreen_exit");
       }
@@ -109,8 +189,6 @@ export default function useProctoring(
     document.addEventListener("cut", handleCopy);
     document.addEventListener("contextmenu", handleContextMenu);
     document.addEventListener("paste", handlePaste);
-
-    document.documentElement.requestFullscreen?.().catch(() => {});
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
@@ -136,15 +214,16 @@ export default function useProctoring(
           modelsReadyRef.current = true;
         }
 
-        let mediaStream = initialStream;
+        let mediaStream = streamRef.current || initialStream;
         if (!mediaStream) {
           mediaStream = await navigator.mediaDevices.getUserMedia({
             video: { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { max: 30 } },
+            audio: true,
           });
         }
 
         if (cancelled) {
-          if (!initialStream) mediaStream.getTracks().forEach((t) => t.stop());
+          mediaStream.getTracks().forEach((t) => t.stop());
           return;
         }
 
@@ -165,7 +244,7 @@ export default function useProctoring(
         video.srcObject = mediaStream;
         video.muted = true;
         video.playsInline = true;
-        await video.play();
+        await video.play().catch(() => {});
         videoRef.current = video;
         setCameraStatus("active");
 
@@ -227,7 +306,6 @@ export default function useProctoring(
               const vWidth = videoRef.current.videoWidth || 320;
               const vHeight = videoRef.current.videoHeight || 240;
 
-              // Check if face is pushed too far to the edges or looking down (secondary device indicator)
               const faceCenterX = box.x + box.width / 2;
               const faceCenterY = box.y + box.height / 2;
 
@@ -237,7 +315,6 @@ export default function useProctoring(
               if (isOffCenterHoriz || isLookingDownOrOff) {
                 gazeAwayCountRef.current += 1;
                 if (gazeAwayCountRef.current >= 4) {
-                  // 2.0s of turned head / off-screen gaze
                   setGazeStatus("looking_away");
                   setCameraStatus("warning");
                   setWarningMessage("⚠️ Suspicious Gaze / Secondary Device Suspected! Please keep eyes on screen.");
@@ -247,7 +324,6 @@ export default function useProctoring(
                 gazeAwayCountRef.current = 0;
                 setGazeStatus("centered");
                 setCameraStatus("active");
-                // Clear warning if candidate has returned to normal posture
                 if (frozenCountRef.current === 0) {
                   setWarningMessage(null);
                 }
@@ -269,10 +345,43 @@ export default function useProctoring(
     return () => {
       cancelled = true;
       if (intervalRef.current) clearInterval(intervalRef.current);
-      if (streamRef.current && !initialStream) streamRef.current.getTracks().forEach((t) => t.stop());
-      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
     };
   }, [enabled, attemptId, initialStream, log]);
+
+  // Clean up all streams and listeners on unmount
+  useEffect(() => {
+    return () => {
+      stopAllProctoring();
+    };
+  }, [stopAllProctoring]);
+
+  // User gesture action to re-enter fullscreen
+  const reEnterFullscreen = useCallback(async () => {
+    try {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+        setIsFullscreenActive(true);
+        setWarningMessage(null);
+      }
+    } catch (err) {
+      console.warn("Fullscreen request rejected:", err);
+    }
+  }, []);
+
+  // User gesture action to resume screen sharing
+  const resumeScreenShare = useCallback(async () => {
+    try {
+      const newStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      screenStreamRef.current = newStream;
+      setScreenStream(newStream);
+      setIsScreenShareActive(true);
+      setWarningMessage(null);
+      return newStream;
+    } catch (err) {
+      setWarningMessage("⚠️ Screen sharing permission was denied or cancelled.");
+      throw err;
+    }
+  }, []);
 
   return {
     stream,
@@ -283,5 +392,10 @@ export default function useProctoring(
     violationCount,
     warningMessage,
     dismissWarning,
+    isFullscreenActive,
+    isScreenShareActive,
+    reEnterFullscreen,
+    resumeScreenShare,
+    stopAllProctoring,
   };
 }

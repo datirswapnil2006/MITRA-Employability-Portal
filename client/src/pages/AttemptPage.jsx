@@ -57,6 +57,7 @@ export default function AttemptPage() {
   const handleSubmit = useCallback(async (exitReason = "Manual Submission") => {
     if (!attemptId || submitting) return;
     setSubmitting(true);
+    proctorState.stopAllProctoring();
     try {
       const result = await submitAttempt(attemptId, { exitReason });
       navigate(`/student/result/${attemptId}`, { state: result });
@@ -64,11 +65,12 @@ export default function AttemptPage() {
       alert(e.response?.data?.message || "Could not submit test");
       setSubmitting(false);
     }
-  }, [attemptId, submitting, navigate]);
+  }, [attemptId, submitting, navigate, proctorState]);
 
   const handleAutoSubmitWithReason = useCallback(async (exitReason, auditLogs, violationCount) => {
     if (!attemptId || submitting) return;
     setSubmitting(true);
+    proctorState.stopAllProctoring();
     try {
       const result = await submitAttempt(attemptId, { exitReason, auditLogs, violationCount });
       navigate(`/student/result/${attemptId}`, { state: result });
@@ -76,7 +78,7 @@ export default function AttemptPage() {
       alert(e.response?.data?.message || "Could not submit test");
       setSubmitting(false);
     }
-  }, [attemptId, submitting, navigate]);
+  }, [attemptId, submitting, navigate, proctorState]);
 
   const {
     showExitModal,
@@ -364,7 +366,6 @@ export default function AttemptPage() {
           setInitialScreenStream(screenStream);
           setSecurityVerified(true);
           setShowPreTestModal(false);
-          document.documentElement.requestFullscreen?.().catch(() => {});
         }}
       />
 
@@ -377,6 +378,10 @@ export default function AttemptPage() {
           gazeStatus={proctorState.gazeStatus}
           violationCount={proctorState.violationCount}
           warningMessage={proctorState.warningMessage}
+          isFullscreenActive={proctorState.isFullscreenActive}
+          isScreenShareActive={proctorState.isScreenShareActive}
+          onReEnterFullscreen={proctorState.reEnterFullscreen}
+          onResumeScreenShare={proctorState.resumeScreenShare}
           onDismissWarning={proctorState.dismissWarning}
         />
       )}

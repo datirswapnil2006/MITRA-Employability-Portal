@@ -8,6 +8,10 @@ export default function LiveProctorCamera({
   gazeStatus = "centered",
   violationCount = 0,
   warningMessage = null,
+  isFullscreenActive = true,
+  isScreenShareActive = true,
+  onReEnterFullscreen,
+  onResumeScreenShare,
   onDismissWarning,
 }) {
   const videoRef = useRef(null);
@@ -18,16 +22,42 @@ export default function LiveProctorCamera({
     }
   }, [stream]);
 
-  const isWarning = cameraStatus === "warning" || gazeStatus === "looking_away" || faceCount !== 1;
+  const isWarning = cameraStatus === "warning" || gazeStatus === "looking_away" || faceCount !== 1 || !isFullscreenActive || !isScreenShareActive;
   const isError = cameraStatus === "error";
 
   return (
     <>
       {/* Floating Live Camera Box */}
       <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2 animate-fadeIn select-none">
+        {/* Fullscreen Lost Action Bar */}
+        {!isFullscreenActive && onReEnterFullscreen && (
+          <div className="bg-rose-600 text-white px-3.5 py-2 rounded-xl shadow-xl border border-rose-500 flex items-center justify-between gap-2 text-xs font-bold animate-bounce">
+            <span>⚠️ Fullscreen Lost</span>
+            <button
+              onClick={onReEnterFullscreen}
+              className="bg-white text-rose-700 hover:bg-rose-50 px-2.5 py-1 rounded-lg text-[11px] font-extrabold cursor-pointer transition-colors shadow-2xs"
+            >
+              Re-enter Fullscreen
+            </button>
+          </div>
+        )}
+
+        {/* Screen Share Lost Action Bar */}
+        {!isScreenShareActive && onResumeScreenShare && (
+          <div className="bg-amber-600 text-white px-3.5 py-2 rounded-xl shadow-xl border border-amber-500 flex items-center justify-between gap-2 text-xs font-bold animate-bounce">
+            <span>⚠️ Screen Share Interrupted</span>
+            <button
+              onClick={onResumeScreenShare}
+              className="bg-white text-amber-900 hover:bg-amber-50 px-2.5 py-1 rounded-lg text-[11px] font-extrabold cursor-pointer transition-colors shadow-2xs"
+            >
+              Resume Screen Sharing
+            </button>
+          </div>
+        )}
+
         {/* Floating Warning Toast Banner if active */}
-        {warningMessage && (
-          <div className="max-w-xs bg-amber-500 text-white px-3.5 py-2 rounded-xl shadow-xl border border-amber-400 flex items-center justify-between gap-2 text-xs font-semibold animate-bounce">
+        {warningMessage && isFullscreenActive && isScreenShareActive && (
+          <div className="max-w-xs bg-amber-500 text-white px-3.5 py-2 rounded-xl shadow-xl border border-amber-400 flex items-center justify-between gap-2 text-xs font-semibold">
             <div className="flex items-center gap-1.5 min-w-0">
               <AlertTriangle size={15} className="shrink-0 text-amber-100" />
               <span className="truncate">{warningMessage}</span>
@@ -35,7 +65,7 @@ export default function LiveProctorCamera({
             {onDismissWarning && (
               <button
                 onClick={onDismissWarning}
-                className="text-amber-100 hover:text-white text-[11px] underline font-bold shrink-0 ml-1"
+                className="text-amber-100 hover:text-white text-[11px] underline font-bold shrink-0 ml-1 cursor-pointer"
               >
                 Dismiss
               </button>
