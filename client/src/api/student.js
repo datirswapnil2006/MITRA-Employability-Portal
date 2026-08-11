@@ -9,6 +9,8 @@ export const getStudentMaterials = (params = {}) => {
   if (params.search) query.set("search", params.search);
   return api.get(`/materials?${query.toString()}`).then((r) => r.data);
 };
+export const downloadMaterialApi = (id) => api.get(`/materials/${id}/download`, { headers: { Accept: "application/json" } }).then((r) => r.data);
+
 export const getStudentPsychometric = () => api.get("/psychometric/student/available").then((r) => r.data);
 export const startPsychometricAttempt = (testId) => api.post(`/psychometric/attempt/start/${testId}`).then((r) => r.data);
 export const savePsychometricAnswer = (attemptId, payload) => api.put(`/psychometric/attempt/${attemptId}/answer`, payload).then((r) => r.data);

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { getFileUrl } from "../utils/fileUrl";
 import Logo from "./common/Logo";
 import {
   LogOut,
@@ -51,6 +52,42 @@ export default function DashboardLayout({ active, links, onNavigate, children })
       localStorage.setItem("theme", "light");
     }
   }, [darkMode]);
+
+  useEffect(() => {
+    const handleThemeEvent = () => {
+      const savedTheme = localStorage.getItem("theme");
+      if (savedTheme === "dark") {
+        setDarkMode(true);
+        document.documentElement.classList.add("dark");
+      } else if (savedTheme === "light") {
+        setDarkMode(false);
+        document.documentElement.classList.remove("dark");
+      } else if (savedTheme === "system") {
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        setDarkMode(prefersDark);
+        if (prefersDark) document.documentElement.classList.add("dark");
+        else document.documentElement.classList.remove("dark");
+      }
+    };
+
+    const handleSidebarEvent = () => {
+      const savedSidebar = localStorage.getItem("sidebar_collapsed");
+      if (savedSidebar !== null) {
+        try {
+          setIsCollapsed(JSON.parse(savedSidebar));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    };
+
+    window.addEventListener("themeChange", handleThemeEvent);
+    window.addEventListener("sidebarChange", handleSidebarEvent);
+    return () => {
+      window.removeEventListener("themeChange", handleThemeEvent);
+      window.removeEventListener("sidebarChange", handleSidebarEvent);
+    };
+  }, []);
 
   // Group links into logical categories
   const getGroupedLinks = () => {
@@ -231,8 +268,12 @@ export default function DashboardLayout({ active, links, onNavigate, children })
         {!isCollapsed ? (
           <div className="flex items-center justify-between gap-2 p-1.5 rounded-xl bg-slate-800/50 border border-slate-700/50">
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
-                {user?.name?.charAt(0)?.toUpperCase() || "U"}
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden">
+                {user?.profileImage ? (
+                  <img src={getFileUrl(user.profileImage)} alt={user.name} className="w-full h-full object-cover object-top" />
+                ) : (
+                  user?.name?.charAt(0)?.toUpperCase() || "U"
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-[12px] font-semibold text-slate-100 truncate">{user?.name}</div>
@@ -252,9 +293,13 @@ export default function DashboardLayout({ active, links, onNavigate, children })
           <div className="flex flex-col items-center gap-1.5">
             <div
               title={`${user?.name} (${user?.email})`}
-              className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-sm"
+              className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-sm overflow-hidden shrink-0"
             >
-              {user?.name?.charAt(0)?.toUpperCase() || "U"}
+              {user?.profileImage ? (
+                <img src={getFileUrl(user.profileImage)} alt={user.name} className="w-full h-full object-cover object-top" />
+              ) : (
+                user?.name?.charAt(0)?.toUpperCase() || "U"
+              )}
             </div>
             <button
               onClick={logout}
@@ -393,8 +438,12 @@ export default function DashboardLayout({ active, links, onNavigate, children })
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className="flex items-center gap-2 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all border border-slate-200 dark:border-slate-800"
               >
-                <div className="w-6.5 h-6.5 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-sm">
-                  {user?.name?.charAt(0)?.toUpperCase() || "U"}
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-sm overflow-hidden shrink-0">
+                  {user?.profileImage ? (
+                    <img src={getFileUrl(user.profileImage)} alt={user.name} className="w-full h-full object-cover object-top" />
+                  ) : (
+                    user?.name?.charAt(0)?.toUpperCase() || "U"
+                  )}
                 </div>
                 <span className="hidden md:inline text-xs font-semibold text-slate-700 dark:text-slate-200 max-w-[90px] truncate">
                   {user?.name?.split(" ")[0]}
@@ -404,9 +453,18 @@ export default function DashboardLayout({ active, links, onNavigate, children })
 
               {showUserMenu && (
                 <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 z-50 animate-fadeIn">
-                  <div className="p-2.5 border-b border-slate-100 dark:border-slate-800 mb-1">
-                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{user?.name}</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user?.email}</p>
+                  <div className="p-2.5 border-b border-slate-100 dark:border-slate-800 mb-1 flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-sm overflow-hidden shrink-0">
+                      {user?.profileImage ? (
+                        <img src={getFileUrl(user.profileImage)} alt={user.name} className="w-full h-full object-cover object-top" />
+                      ) : (
+                        user?.name?.charAt(0)?.toUpperCase() || "U"
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{user?.name}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user?.email}</p>
+                    </div>
                   </div>
                   <button
                     onClick={() => {

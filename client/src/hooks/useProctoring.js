@@ -1,19 +1,19 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { logProctorEvent } from "../api/proctor";
 
-// Face detection model weights, served from a CDN mirror of the official
-// face-api.js repo. Swap this for a same-origin /models path if you'd
-// rather self-host the weight files (recommended for production —
-// avoids depending on a third party during a live test).
 const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 
-const FACE_CHECK_INTERVAL_MS = 7000;
-const EVENT_COOLDOWN_MS = 5000; // avoid flooding the same event repeatedly
+const FAST_FACE_CHECK_INTERVAL_MS = 500; // Sub-second real-time verification
+const EVENT_COOLDOWN_MS = 4000; // Cooldown per event type to prevent log flooding
 
-// Wires up tab-switch, full-screen-exit, copy/paste, and webcam face-count
-// detection for the duration of a test attempt. Every detector fails silently
-// and never blocks the student's ability to take the test.
 export default function useProctoring(attemptId, { enabled = true, onAutoSubmit } = {}) {
+  const [stream, setStream] = useState(null);
+  const [cameraStatus, setCameraStatus] = useState("initializing"); // initializing | active | warning | error
+  const [faceCount, setFaceCount] = useState(1);
+  const [gazeStatus, setGazeStatus] = useState("centered"); // centered | looking_away
+  const [violationCount, setViolationCount] = useState(0);
+  const [warningMessage, setWarningMessage] = useState(null);
+
   const lastLoggedRef = useRef({});
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -21,39 +21,63 @@ export default function useProctoring(attemptId, { enabled = true, onAutoSubmit 
   const modelsReadyRef = useRef(false);
   const terminatedRef = useRef(false);
 
-  const log = (type, detail = "") => {
-    if (!attemptId || terminatedRef.current) return;
-    const now = Date.now();
-    const last = lastLoggedRef.current[type] || 0;
-    if (now - last < EVENT_COOLDOWN_MS) return;
-    lastLoggedRef.current[type] = now;
+  // Consecutive trackers for robust debouncing
+  const noFaceCountRef = useRef(0);
+  const multiFaceCountRef = useRef(0);
+  const gazeAwayCountRef = useRef(0);
+  const lastVideoTimeRef = useRef(0);
+  const frozenCountRef = useRef(0);
 
-    logProctorEvent(attemptId, type, detail).then((result) => {
-      if (result?.autoSubmitted && !terminatedRef.current) {
-        terminatedRef.current = true;
-        onAutoSubmit?.(result);
-      }
-    });
-  };
+  const dismissWarning = useCallback(() => {
+    setWarningMessage(null);
+  }, []);
 
-  // Tab switch + full-screen
+  const log = useCallback(
+    (type, detail = "") => {
+      if (!attemptId || terminatedRef.current) return;
+      const now = Date.now();
+      const last = lastLoggedRef.current[type] || 0;
+      if (now - last < EVENT_COOLDOWN_MS) return;
+      lastLoggedRef.current[type] = now;
+
+      setViolationCount((prev) => prev + 1);
+
+      logProctorEvent(attemptId, type, detail).then((result) => {
+        if (result?.autoSubmitted && !terminatedRef.current) {
+          terminatedRef.current = true;
+          onAutoSubmit?.(result);
+        }
+      });
+    },
+    [attemptId, onAutoSubmit]
+  );
+
+  // Tab switch, full-screen, copy/paste, context menu listeners
   useEffect(() => {
     if (!enabled) return;
 
     const handleVisibility = () => {
-      if (document.hidden) log("tab_switch");
+      if (document.hidden) {
+        setWarningMessage("⚠️ Tab Switched! Staying away from the test window is flagged as a violation.");
+        log("tab_switch");
+      }
     };
     const handleFullscreenChange = () => {
-      if (!document.fullscreenElement) log("fullscreen_exit");
+      if (!document.fullscreenElement) {
+        setWarningMessage("⚠️ Full-Screen Exited! Please return to full-screen mode immediately.");
+        log("fullscreen_exit");
+      }
     };
-    const handleCopy = (e) => {
+    const handleCopy = () => {
+      setWarningMessage("⚠️ Copy Action Blocked & Flagged.");
       log("copy_attempt");
     };
-    const handlePaste = (e) => {
+    const handlePaste = () => {
       log("paste_attempt");
     };
     const handleContextMenu = (e) => {
       e.preventDefault();
+      setWarningMessage("⚠️ Right-Click Disabled during assessment.");
       log("right_click");
     };
 
@@ -62,13 +86,8 @@ export default function useProctoring(attemptId, { enabled = true, onAutoSubmit 
     document.addEventListener("copy", handleCopy);
     document.addEventListener("cut", handleCopy);
     document.addEventListener("contextmenu", handleContextMenu);
-    // Paste is intentionally NOT blocked (students paste their own code into
-    // the editor legitimately) — it's logged at low severity for visibility only.
     document.addEventListener("paste", handlePaste);
 
-    // Best-effort: ask for full-screen. Browsers require a user gesture for
-    // this in some cases, so this can silently fail — that's fine, it's not
-    // a hard requirement, just one more signal.
     document.documentElement.requestFullscreen?.().catch(() => {});
 
     return () => {
@@ -79,9 +98,9 @@ export default function useProctoring(attemptId, { enabled = true, onAutoSubmit 
       document.removeEventListener("contextmenu", handleContextMenu);
       document.removeEventListener("paste", handlePaste);
     };
-  }, [enabled, attemptId]);
+  }, [enabled, attemptId, log]);
 
-  // Webcam face-count detection
+  // Webcam stream & continuous sub-second face detection loop
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
@@ -95,40 +114,108 @@ export default function useProctoring(attemptId, { enabled = true, onAutoSubmit 
           modelsReadyRef.current = true;
         }
 
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } });
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { max: 30 } },
+        });
+
         if (cancelled) {
-          stream.getTracks().forEach((t) => t.stop());
+          mediaStream.getTracks().forEach((t) => t.stop());
           return;
         }
-        streamRef.current = stream;
+
+        streamRef.current = mediaStream;
+        setStream(mediaStream);
 
         const video = document.createElement("video");
-        video.srcObject = stream;
+        video.srcObject = mediaStream;
         video.muted = true;
         video.playsInline = true;
         await video.play();
         videoRef.current = video;
+        setCameraStatus("active");
 
         intervalRef.current = setInterval(async () => {
-          if (!videoRef.current) return;
+          if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
+
+          // Detect frozen or static camera feed
+          if (videoRef.current.currentTime === lastVideoTimeRef.current) {
+            frozenCountRef.current += 1;
+            if (frozenCountRef.current >= 4) {
+              setCameraStatus("warning");
+              setWarningMessage("⚠️ Camera Stream Frozen or Interrupted! Check camera device.");
+              log("camera_frozen", "Video frame static for > 2 seconds");
+            }
+          } else {
+            frozenCountRef.current = 0;
+            lastVideoTimeRef.current = videoRef.current.currentTime;
+          }
+
           try {
-            const detections = await faceapi.detectAllFaces(
-              videoRef.current,
-              new faceapi.TinyFaceDetectorOptions()
-            );
-            if (detections.length === 0) {
-              log("no_face");
-            } else if (detections.length > 1) {
-              log("multiple_faces", `${detections.length} faces`);
+            const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 });
+            const detections = await faceapi.detectAllFaces(videoRef.current, options);
+            const count = detections.length;
+            setFaceCount(count);
+
+            if (count === 0) {
+              noFaceCountRef.current += 1;
+              multiFaceCountRef.current = 0;
+              gazeAwayCountRef.current = 0;
+
+              if (noFaceCountRef.current >= 3) {
+                // 1.5s of absence
+                setCameraStatus("warning");
+                setWarningMessage("⚠️ Candidate Face Absent! Please remain in front of the camera.");
+                log("no_face");
+              }
+            } else if (count > 1) {
+              multiFaceCountRef.current += 1;
+              noFaceCountRef.current = 0;
+              gazeAwayCountRef.current = 0;
+
+              if (multiFaceCountRef.current >= 2) {
+                // 1.0s of multiple faces
+                setCameraStatus("warning");
+                setWarningMessage(`⚠️ Multiple (${count}) Faces Detected! Only registered candidate permitted.`);
+                log("multiple_faces", `${count} faces detected in camera frame`);
+              }
+            } else {
+              // Exactly 1 face detected — verify gaze / head pose / off-screen positioning
+              noFaceCountRef.current = 0;
+              multiFaceCountRef.current = 0;
+
+              const box = detections[0].box;
+              const vWidth = videoRef.current.videoWidth || 320;
+              const vHeight = videoRef.current.videoHeight || 240;
+
+              // Check if face is pushed too far to the edges or looking down (secondary device indicator)
+              const faceCenterX = box.x + box.width / 2;
+              const faceCenterY = box.y + box.height / 2;
+
+              const isOffCenterHoriz = faceCenterX < vWidth * 0.12 || faceCenterX > vWidth * 0.88;
+              const isLookingDownOrOff = faceCenterY > vHeight * 0.82 || box.width < vWidth * 0.10;
+
+              if (isOffCenterHoriz || isLookingDownOrOff) {
+                gazeAwayCountRef.current += 1;
+                if (gazeAwayCountRef.current >= 4) {
+                  // 2.0s of turned head / off-screen gaze
+                  setGazeStatus("looking_away");
+                  setCameraStatus("warning");
+                  setWarningMessage("⚠️ Suspicious Gaze / Secondary Device Suspected! Please keep eyes on screen.");
+                  log("suspicious_gaze", "Candidate turned head or looked off-screen");
+                }
+              } else {
+                gazeAwayCountRef.current = 0;
+                setGazeStatus("centered");
+                setCameraStatus("active");
+              }
             }
           } catch {
-            // A single failed detection cycle isn't worth logging — only
-            // persistent camera unavailability (caught below) is.
+            // Transient frame processing error ignored gracefully
           }
-        }, FACE_CHECK_INTERVAL_MS);
+        }, FAST_FACE_CHECK_INTERVAL_MS);
       } catch (err) {
-        // Camera denied, unavailable, or model failed to load. Log once and
-        // move on — proctoring degrades gracefully, the test still proceeds.
+        setCameraStatus("error");
+        setWarningMessage("⚠️ Camera access unavailable or denied. Proctoring system degraded.");
         log("camera_unavailable", err.message);
       }
     };
@@ -141,5 +228,15 @@ export default function useProctoring(attemptId, { enabled = true, onAutoSubmit 
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
       if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
     };
-  }, [enabled, attemptId]);
+  }, [enabled, attemptId, log]);
+
+  return {
+    stream,
+    cameraStatus,
+    faceCount,
+    gazeStatus,
+    violationCount,
+    warningMessage,
+    dismissWarning,
+  };
 }

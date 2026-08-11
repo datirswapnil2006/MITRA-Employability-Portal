@@ -62,7 +62,7 @@ export default function StudentPracticeContainer() {
       }
     } catch (err) {
       navigate("/student/practice/tests");
-    } fontFinally: {
+    } finally {
       setLaunchingTopic("");
     }
   };

@@ -13,7 +13,8 @@ import {
   Trophy, Zap, Award, AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, RefreshCw, Sparkles, Target, Eye
 } from "lucide-react";
 
-// Modern Test Components
+import useProctoring from "../../hooks/useProctoring";
+import LiveProctorCamera from "../../components/test/LiveProctorCamera";
 import TestHeader from "../../components/test/TestHeader";
 import QuestionPalette from "../../components/test/QuestionPalette";
 import QuestionCard from "../../components/test/QuestionCard";
@@ -43,9 +44,13 @@ export default function StudentSelfTestAttempt() {
   const [submittedResult, setSubmittedResult] = useState(null);
   const [bookmarks, setBookmarks] = useState({});
   const [fontSize, setFontSize] = useState("base");
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
-
   const saveTimers = useRef({});
+
+  // Continuous Proctoring & Live Camera Feed
+  const proctorState = useProctoring(id, {
+    enabled: !loading && !error && !submitting && !submittedResult,
+    onAutoSubmit: () => handleSubmit("Auto-submitted due to proctoring violations"),
+  });
 
   useEffect(() => {
     getSelfTestAttempt(id)
@@ -479,6 +484,19 @@ export default function StudentSelfTestAttempt() {
         markedForReview={markedForReview}
         submitting={submitting}
       />
+
+      {/* Live Proctoring Floating Camera Overlay */}
+      {!loading && !error && !submitting && !submittedResult && (
+        <LiveProctorCamera
+          stream={proctorState.stream}
+          cameraStatus={proctorState.cameraStatus}
+          faceCount={proctorState.faceCount}
+          gazeStatus={proctorState.gazeStatus}
+          violationCount={proctorState.violationCount}
+          warningMessage={proctorState.warningMessage}
+          onDismissWarning={proctorState.dismissWarning}
+        />
+      )}
     </div>
   );
 }

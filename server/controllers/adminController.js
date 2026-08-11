@@ -147,6 +147,27 @@ export const getFlaggedAttempts = async (req, res) => {
   }
 };
 
+// @route DELETE /api/admin/flagged-attempts   (admin)
+export const clearFlaggedAttempts = async (req, res) => {
+  try {
+    await Attempt.deleteMany({ flagged: true });
+    res.json({ message: "All flagged attempts cleared successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to clear flagged attempts", error: err.message });
+  }
+};
+
+// @route DELETE /api/admin/flagged-attempts/:id   (admin)
+export const deleteFlaggedAttemptById = async (req, res) => {
+  try {
+    await Attempt.findByIdAndDelete(req.params.id);
+    res.json({ message: "Flagged attempt deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to delete attempt", error: err.message });
+  }
+};
+
+
 // @route GET /api/admin/students/:id   (admin)
 // Full drill-down: student profile + every submitted attempt with per-question detail.
 export const getStudentDetail = async (req, res) => {

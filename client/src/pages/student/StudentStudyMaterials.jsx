@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
-import { getStudentMaterials } from "../../api/student";
+import { getStudentMaterials, downloadMaterialApi } from "../../api/student";
 import { STUDENT_LINKS } from "./studentLinks";
-import { BookOpen, FileText, Link as LinkIcon, Download, Search, ExternalLink, X } from "lucide-react";
+import { BookOpen, FileText, Link as LinkIcon, Download, Search, ExternalLink, X, Eye } from "lucide-react";
+import { getFileUrl } from "../../utils/fileUrl";
 
 const TYPE_ICONS = {
   pdf: FileText,
@@ -24,6 +25,7 @@ export default function StudentStudyMaterials({ embedded = false }) {
   const [type, setType] = useState("");
   const [search, setSearch] = useState("");
   const [selectedNote, setSelectedNote] = useState(null);
+  const [previewPdf, setPreviewPdf] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -34,6 +36,29 @@ export default function StudentStudyMaterials({ embedded = false }) {
   }, [category, type, search]);
 
   const categories = Array.from(new Set(materials.map((m) => m.category))).filter(Boolean);
+
+  const handleDownload = async (m) => {
+    try {
+      const res = await downloadMaterialApi(m._id);
+      if (res?.downloadCount !== undefined) {
+        setMaterials((prev) => prev.map((item) => (item._id === m._id ? { ...item, downloadCount: res.downloadCount } : item)));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    if (m.type === "pdf" && m.fileUrl) {
+      const fullUrl = getFileUrl(m.fileUrl);
+      const link = document.createElement("a");
+      link.href = fullUrl;
+      link.target = "_blank";
+      link.download = `${m.title}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else if (m.type === "link" && m.fileUrl) {
+      window.open(m.fileUrl, "_blank");
+    }
+  };
 
   const mainContent = (
     <>
@@ -133,14 +158,20 @@ export default function StudentStudyMaterials({ embedded = false }) {
 
                 <div className="pt-3 border-t border-line">
                   {m.type === "pdf" && m.fileUrl && (
-                    <a
-                      href={m.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full bg-accent text-white rounded-lg px-4 py-2.5 font-semibold text-[13px] hover:bg-accent-hover transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Download size={15} /> Download PDF
-                    </a>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setPreviewPdf(m)}
+                        className="flex-1 bg-accent/10 text-accent hover:bg-accent hover:text-white rounded-lg px-3 py-2.5 font-semibold text-[13px] transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Eye size={15} /> Preview
+                      </button>
+                      <button
+                        onClick={() => handleDownload(m)}
+                        className="flex-1 bg-accent text-white rounded-lg px-3 py-2.5 font-semibold text-[13px] hover:bg-accent-hover transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Download size={15} /> Download
+                      </button>
+                    </div>
                   )}
 
                   {m.type === "link" && m.fileUrl && (
@@ -166,6 +197,46 @@ export default function StudentStudyMaterials({ embedded = false }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* PDF Preview Modal */}
+      {previewPdf && (
+        <div className="fixed inset-0 bg-desk/70 flex items-center justify-center p-4 sm:p-6 z-50" onClick={() => setPreviewPdf(null)}>
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-line bg-slate-50">
+              <div>
+                <span className="font-mono text-[11px] uppercase tracking-wide text-accent bg-accent/10 px-2 py-0.5 rounded font-semibold">
+                  {previewPdf.category} • PDF
+                </span>
+                <h2 className="font-display text-lg font-bold text-ink mt-0.5">{previewPdf.title}</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => window.open(getFileUrl(previewPdf.fileUrl), "_blank")}
+                  className="px-3 py-1.5 rounded-lg border border-line text-ink hover:bg-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                >
+                  <ExternalLink size={14} /> Open in New Tab
+                </button>
+                <button
+                  onClick={() => handleDownload(previewPdf)}
+                  className="px-3 py-1.5 rounded-lg bg-accent text-white hover:bg-accent-hover text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                >
+                  <Download size={14} /> Download
+                </button>
+                <button onClick={() => setPreviewPdf(null)} className="p-1.5 rounded-lg text-ink-soft hover:bg-slate-200">
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 bg-slate-900 p-2 min-h-[60vh]">
+              <iframe
+                src={getFileUrl(previewPdf.fileUrl)}
+                className="w-full h-full min-h-[60vh] rounded-lg border-0 bg-white"
+                title={previewPdf.title}
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -208,3 +279,4 @@ export default function StudentStudyMaterials({ embedded = false }) {
     </DashboardLayout>
   );
 }
+

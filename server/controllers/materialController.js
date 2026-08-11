@@ -1,3 +1,5 @@
+import path from "path";
+import fs from "fs";
 import StudyMaterial from "../models/StudyMaterial.js";
 
 // @route GET /api/materials   (admin)
@@ -90,10 +92,57 @@ export const toggleMaterial = async (req, res) => {
 // @route DELETE /api/materials/:id   (admin)
 export const deleteMaterial = async (req, res) => {
   try {
-    const material = await StudyMaterial.findByIdAndDelete(req.params.id);
+    const material = await StudyMaterial.findById(req.params.id);
     if (!material) return res.status(404).json({ message: "Material not found" });
+
+    if (material.type === "pdf" && material.fileUrl) {
+      const relativePath = material.fileUrl.startsWith("/") ? material.fileUrl.slice(1) : material.fileUrl;
+      const fullPath = path.join(process.cwd(), relativePath);
+      if (fs.existsSync(fullPath)) {
+        try { fs.unlinkSync(fullPath); } catch (e) { console.error("Error removing file:", e); }
+      }
+    }
+
+    await StudyMaterial.findByIdAndDelete(req.params.id);
     res.json({ message: "Material deleted" });
   } catch (err) {
     res.status(500).json({ message: "Failed to delete material", error: err.message });
   }
 };
+
+// @route GET/POST /api/materials/:id/download
+export const downloadMaterialFile = async (req, res) => {
+  try {
+    const material = await StudyMaterial.findByIdAndUpdate(
+      req.params.id,
+      { $inc: { downloadCount: 1 } },
+      { new: true }
+    );
+    if (!material) return res.status(404).json({ message: "Material not found" });
+
+    // If API client explicitly requests JSON response and not stream
+    if (req.headers.accept && req.headers.accept.includes("application/json") && !req.query.stream) {
+      return res.json(material);
+    }
+
+    if (material.type === "pdf" && material.fileUrl) {
+      const relativePath = material.fileUrl.startsWith("/") ? material.fileUrl.slice(1) : material.fileUrl;
+      const fullPath = path.join(process.cwd(), relativePath);
+      if (fs.existsSync(fullPath)) {
+        const downloadName = `${material.title.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`;
+        return res.download(fullPath, downloadName);
+      } else {
+        return res.status(404).json({ message: "PDF file not found on server. Please re-upload this material." });
+      }
+    }
+
+    if (material.fileUrl) {
+      return res.redirect(material.fileUrl);
+    }
+
+    res.json(material);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to process download", error: err.message });
+  }
+};
+

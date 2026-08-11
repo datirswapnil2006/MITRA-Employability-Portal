@@ -136,3 +136,19 @@ export const createMaterial = (formData) =>
 export const updateMaterial = (id, payload) => api.put(`/materials/${id}`, payload).then((r) => r.data);
 export const toggleMaterial = (id) => api.patch(`/materials/${id}/toggle`).then((r) => r.data);
 export const deleteMaterial = (id) => api.delete(`/materials/${id}`).then((r) => r.data);
+export const downloadMaterialApi = (id) => api.get(`/materials/${id}/download`, { headers: { Accept: "application/json" } }).then((r) => r.data);
+
+// Admin Profile Photo
+export const uploadAdminPhotoApi = (formData) =>
+  api.post("/auth/profile-photo", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  }).then((r) => r.data);
+
+export const deleteAdminPhotoApi = () =>
+  api.delete("/auth/profile-photo").then((r) => r.data);
+
+export const updateAdminProfileApi = (payload) =>
+  api.put("/auth/profile", payload).then((r) => r.data);
+
+
+

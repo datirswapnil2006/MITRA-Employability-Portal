@@ -53,6 +53,8 @@ const userSchema = new mongoose.Schema(
       currentCgpa: { type: Number },
       currentSemester: { type: String, trim: true },
     },
+    // Admin profile photo path (e.g. /uploads/avatars/...)
+    profileImage: { type: String, default: null },
     // Forgot-password flow: we store a HASH of the reset token (never the
     // raw token) plus an expiry, mirroring how passwords themselves are
     // never stored in plain text. The raw token only ever exists in the
@@ -95,6 +97,7 @@ userSchema.methods.toSafeObject = function () {
     branch: this.branch,
     year: this.year,
     section: this.section,
+    profileImage: this.profileImage,
     academicDetails: this.academicDetails,
   };
 };

@@ -5,6 +5,8 @@ import {
   savePsychometricAnswer,
   submitPsychometricAttempt,
 } from "../../api/student";
+import useProctoring from "../../hooks/useProctoring";
+import LiveProctorCamera from "../../components/test/LiveProctorCamera";
 import useAssessmentBehavior from "../../hooks/useAssessmentBehavior";
 import AssessmentExitConfirmModal from "../../components/test/AssessmentExitConfirmModal";
 import {
@@ -41,9 +43,13 @@ export default function StudentPsychometricAttempt() {
   const [saveStatus, setSaveStatus] = useState("saved");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [timeLeftSeconds, setTimeLeftSeconds] = useState(0);
-
   const timerRef = useRef(null);
+
+  // Continuous AI Proctoring & Live Camera Feed
+  const proctorState = useProctoring(attemptId, {
+    enabled: !loading && !error && !submitting && Boolean(attemptId),
+    onAutoSubmit: (result) => handleAutoSubmitWithReason("Auto-submitted due to proctoring violations", result?.auditLogs || []),
+  });
 
   const handleAutoSubmitWithReason = useCallback(
     async (exitReason = "Manual Submission", auditLogs = [], violationCount = 0) => {
@@ -438,6 +444,19 @@ export default function StudentPsychometricAttempt() {
         onLeave={handleConfirmLeaveAssessment}
         isWarningOnly={modalConfig.isWarningOnly}
       />
+
+      {/* Live Proctoring Floating Camera Overlay */}
+      {!loading && !error && !submitting && Boolean(attemptId) && (
+        <LiveProctorCamera
+          stream={proctorState.stream}
+          cameraStatus={proctorState.cameraStatus}
+          faceCount={proctorState.faceCount}
+          gazeStatus={proctorState.gazeStatus}
+          violationCount={proctorState.violationCount}
+          warningMessage={proctorState.warningMessage}
+          onDismissWarning={proctorState.dismissWarning}
+        />
+      )}
     </div>
   );
 }

@@ -18,7 +18,7 @@ dotenv.config();
 connectDB();
 
 // Ensure upload directories exist
-["uploads/temp", "uploads/materials"].forEach((dir) => {
+["uploads/temp", "uploads/materials", "uploads/avatars"].forEach((dir) => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
@@ -43,6 +43,9 @@ app.use(express.json());
 
 // Serve uploaded files statically
 app.use("/uploads", express.static("uploads"));
+app.use("/uploads", (req, res) => {
+  res.status(404).json({ message: "Requested upload file not found on server." });
+});
 
 app.use("/api/auth", authRoutes);
 app.use("/api/tests", testRoutes);

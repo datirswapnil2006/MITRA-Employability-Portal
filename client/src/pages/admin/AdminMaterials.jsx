@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
-import { listMaterials, createMaterial, toggleMaterial, deleteMaterial, getMaterialCategories } from "../../api/admin";
+import { listMaterials, createMaterial, toggleMaterial, deleteMaterial, getMaterialCategories, downloadMaterialApi } from "../../api/admin";
 import { ADMIN_LINKS } from "./adminLinks";
-import { BookOpen, Upload, Link as LinkIcon, FileText, Eye, EyeOff, Download, Trash2, X } from "lucide-react";
+import { BookOpen, Upload, Link as LinkIcon, FileText, Eye, EyeOff, Download, Trash2, X, ExternalLink } from "lucide-react";
+import { getFileUrl } from "../../utils/fileUrl";
 
 const navigateAdmin = (navigate) => (k) => {
   if (k === "overview") navigate("/admin");
@@ -35,6 +36,8 @@ export default function AdminMaterials() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [previewPdf, setPreviewPdf] = useState(null);
+  const [previewNote, setPreviewNote] = useState(null);
   const [filter, setFilter] = useState({ category: "", type: "", search: "" });
   const [error, setError] = useState("");
 
@@ -102,6 +105,39 @@ export default function AdminMaterials() {
     setMaterials((m) => m.filter((x) => x._id !== id));
   };
 
+  const handleDownload = async (m) => {
+    try {
+      const res = await downloadMaterialApi(m._id);
+      if (res?.downloadCount !== undefined) {
+        setMaterials((prev) => prev.map((item) => (item._id === m._id ? { ...item, downloadCount: res.downloadCount } : item)));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    if (m.type === "pdf" && m.fileUrl) {
+      const fullUrl = getFileUrl(m.fileUrl);
+      const link = document.createElement("a");
+      link.href = fullUrl;
+      link.target = "_blank";
+      link.download = `${m.title}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else if (m.type === "link" && m.fileUrl) {
+      window.open(m.fileUrl, "_blank");
+    }
+  };
+
+  const handlePreview = (m) => {
+    if (m.type === "pdf") {
+      setPreviewPdf(m);
+    } else if (m.type === "note") {
+      setPreviewNote(m);
+    } else if (m.type === "link" && m.fileUrl) {
+      window.open(m.fileUrl, "_blank");
+    }
+  };
+
   return (
     <DashboardLayout active="materials" links={ADMIN_LINKS} onNavigate={navigateAdmin(navigate)}>
       <div className="flex items-start justify-between mb-7 flex-wrap gap-3">
@@ -166,49 +202,146 @@ export default function AdminMaterials() {
           {materials.map((m) => {
             const TypeIcon = TYPE_ICONS[m.type] || FileText;
             return (
-              <div key={m._id} className="bg-white border border-line rounded-xl p-5 hover:shadow-md transition-all duration-200 group">
-                <div className="flex items-start gap-3 mb-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${TYPE_COLORS[m.type]}`}>
-                    <TypeIcon size={18} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-[14px] text-ink truncate group-hover:text-accent transition-colors">
-                      {m.title}
-                    </h3>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[11px] font-mono uppercase tracking-wide text-accent bg-accent/10 px-1.5 py-0.5 rounded">
+              <div key={m._id} className="bg-white border border-line rounded-xl p-5 hover:shadow-md transition-all duration-200 group flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${TYPE_COLORS[m.type]}`}>
+                        <TypeIcon size={16} />
+                      </div>
+                      <span className="text-[11px] font-mono uppercase tracking-wide text-accent bg-accent/10 px-1.5 py-0.5 rounded font-semibold">
                         {m.type}
                       </span>
-                      <span className="text-[11px] text-ink-soft">{m.category}</span>
                     </div>
-                  </div>
-                </div>
-
-                {m.description && (
-                  <p className="text-[12.5px] text-ink-soft mb-3 line-clamp-2">{m.description}</p>
-                )}
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-[11px] text-ink-soft">
-                    <Download size={12} />
-                    <span>{m.downloadCount} downloads</span>
-                  </div>
-                  <div className="flex items-center gap-2">
+                    {/* Visibility Toggle Badge */}
                     <button
                       onClick={() => handleToggle(m._id)}
-                      className={`p-1.5 rounded-lg transition-colors ${m.isVisible ? "text-success hover:bg-success/10" : "text-ink-soft hover:bg-slate-100"}`}
-                      title={m.isVisible ? "Visible to students" : "Hidden from students"}
+                      className={`text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 transition-colors ${
+                        m.isVisible
+                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      }`}
+                      title={m.isVisible ? "Click to hide from students" : "Click to show to students"}
                     >
-                      {m.isVisible ? <Eye size={16} /> : <EyeOff size={16} />}
+                      {m.isVisible ? <Eye size={12} /> : <EyeOff size={12} />}
+                      {m.isVisible ? "Visible" : "Hidden"}
                     </button>
-                    <button onClick={() => handleDelete(m._id)} className="p-1.5 rounded-lg text-ink-soft hover:text-danger hover:bg-danger/10 transition-colors">
-                      <Trash2 size={16} />
-                    </button>
+                  </div>
+
+                  <h3 className="font-semibold text-[14.5px] text-ink truncate group-hover:text-accent transition-colors">
+                    {m.title}
+                  </h3>
+                  <p className="text-[11.5px] text-ink-soft mb-2">{m.category}</p>
+
+                  {m.description && (
+                    <p className="text-[12.5px] text-ink-soft mb-3 line-clamp-2">{m.description}</p>
+                  )}
+                </div>
+
+                <div className="pt-3 border-t border-line">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1 text-[11px] text-ink-soft">
+                      <Download size={12} />
+                      <span>{m.downloadCount} downloads</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handlePreview(m)}
+                        className="px-2.5 py-1.5 rounded-lg bg-accent/10 text-accent hover:bg-accent hover:text-white transition-colors text-[12px] font-semibold flex items-center gap-1"
+                        title="Preview Material"
+                      >
+                        <Eye size={14} /> Preview
+                      </button>
+
+                      {m.type === "pdf" && (
+                        <button
+                          onClick={() => handleDownload(m)}
+                          className="p-1.5 rounded-lg text-ink-soft hover:text-accent hover:bg-accent/10 transition-colors"
+                          title="Download PDF"
+                        >
+                          <Download size={15} />
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => handleDelete(m._id)}
+                        className="p-1.5 rounded-lg text-ink-soft hover:text-danger hover:bg-danger/10 transition-colors"
+                        title="Delete Material"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* PDF Preview Modal */}
+      {previewPdf && (
+        <div className="fixed inset-0 bg-desk/70 flex items-center justify-center p-4 sm:p-6 z-50" onClick={() => setPreviewPdf(null)}>
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-line bg-slate-50">
+              <div>
+                <span className="font-mono text-[11px] uppercase tracking-wide text-accent bg-accent/10 px-2 py-0.5 rounded font-semibold">
+                  {previewPdf.category} • PDF
+                </span>
+                <h2 className="font-display text-lg font-bold text-ink mt-0.5">{previewPdf.title}</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => window.open(getFileUrl(previewPdf.fileUrl), "_blank")}
+                  className="px-3 py-1.5 rounded-lg border border-line text-ink hover:bg-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                >
+                  <ExternalLink size={14} /> Open in New Tab
+                </button>
+                <button
+                  onClick={() => handleDownload(previewPdf)}
+                  className="px-3 py-1.5 rounded-lg bg-accent text-white hover:bg-accent-hover text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                >
+                  <Download size={14} /> Download
+                </button>
+                <button onClick={() => setPreviewPdf(null)} className="p-1.5 rounded-lg text-ink-soft hover:bg-slate-200">
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 bg-slate-900 p-2 min-h-[60vh]">
+              <iframe
+                src={getFileUrl(previewPdf.fileUrl)}
+                className="w-full h-full min-h-[60vh] rounded-lg border-0 bg-white"
+                title={previewPdf.title}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Note Preview Modal */}
+      {previewNote && (
+        <div className="fixed inset-0 bg-desk/60 flex items-center justify-center p-6 z-50" onClick={() => setPreviewNote(null)}>
+          <div className="bg-surface rounded-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 border-b border-line pb-3">
+              <div>
+                <span className="font-mono text-[11px] uppercase tracking-wide text-accent bg-accent/10 px-2 py-0.5 rounded font-semibold">
+                  {previewNote.category} • NOTE
+                </span>
+                <h2 className="font-display text-xl font-bold text-ink mt-1">{previewNote.title}</h2>
+              </div>
+              <button onClick={() => setPreviewNote(null)} className="p-1.5 rounded-lg text-ink-soft hover:bg-slate-100">
+                <X size={18} />
+              </button>
+            </div>
+            {previewNote.description && (
+              <p className="text-[13.5px] text-ink-soft mb-4 italic">{previewNote.description}</p>
+            )}
+            <div className="bg-white border border-line rounded-lg p-5 text-[14px] text-ink whitespace-pre-wrap font-mono leading-relaxed">
+              {previewNote.content || "No content provided for this note."}
+            </div>
+          </div>
         </div>
       )}
 

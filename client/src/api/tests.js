@@ -60,6 +60,8 @@ export const getAllStudents = (params = {}) => {
   return api.get(`/admin/students?${query.toString()}`).then((r) => r.data);
 };
 export const getFlaggedAttempts = () => api.get("/admin/flagged-attempts").then((r) => r.data);
+export const clearFlaggedAttempts = () => api.delete("/admin/flagged-attempts").then((r) => r.data);
+export const deleteFlaggedAttemptById = (id) => api.delete(`/admin/flagged-attempts/${id}`).then((r) => r.data);
 export const getStudentDetail = (id) => api.get(`/admin/students/${id}`).then((r) => r.data);
 export const getLeaderboard = (testId, branch = "") =>
   api.get(`/tests/${testId}/leaderboard${branch ? `?branch=${encodeURIComponent(branch)}` : ""}`).then((r) => r.data);

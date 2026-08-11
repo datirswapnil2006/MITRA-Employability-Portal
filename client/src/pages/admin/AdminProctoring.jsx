@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
-import { listTests, BRANCHES, getFlaggedAttempts } from "../../api/tests";
+import { listTests, BRANCHES, getFlaggedAttempts, clearFlaggedAttempts, deleteFlaggedAttemptById } from "../../api/tests";
 import { getProctorEvents } from "../../api/proctor";
 import { ADMIN_LINKS } from "./adminLinks";
 
@@ -13,6 +13,8 @@ const EVENT_LABEL = {
   right_click: "Right-click attempt",
   no_face: "No face detected",
   multiple_faces: "Multiple faces detected",
+  suspicious_gaze: "Suspicious gaze / Secondary device",
+  camera_frozen: "Camera stream static / frozen",
   camera_unavailable: "Camera unavailable",
 };
 
@@ -48,6 +50,25 @@ export default function AdminProctoring() {
   const loadFlagged = useCallback(() => {
     getFlaggedAttempts().then(setFlagged);
   }, []);
+
+  const handleClearAllFlagged = async () => {
+    if (!window.confirm("Are you sure you want to clear all auto-submitted cheating records?")) return;
+    try {
+      await clearFlaggedAttempts();
+      setFlagged([]);
+    } catch (err) {
+      alert("Failed to clear flagged records");
+    }
+  };
+
+  const handleClearSingle = async (id) => {
+    try {
+      await deleteFlaggedAttemptById(id);
+      setFlagged((prev) => prev.filter((item) => item._id !== id));
+    } catch (err) {
+      alert("Failed to delete record");
+    }
+  };
 
   const load = useCallback(() => {
     getProctorEvents({ testId, severity, branch }).then(setEvents).finally(() => setLoading(false));
@@ -88,11 +109,19 @@ export default function AdminProctoring() {
 
       {flagged.length > 0 && (
         <div className="mb-8">
-          <h2 className="font-display text-lg font-semibold mb-3">Auto-Submitted for Suspected Cheating</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-display text-lg font-semibold">Auto-Submitted for Suspected Cheating</h2>
+            <button
+              onClick={handleClearAllFlagged}
+              className="px-3 py-1 text-xs font-semibold text-danger border border-danger/30 rounded hover:bg-danger/10 transition-colors"
+            >
+              Clear All Flagged Records
+            </button>
+          </div>
           <table className="w-full border-collapse bg-white rounded overflow-hidden shadow-sm border border-danger/20">
             <thead>
               <tr>
-                {["Student", "Test", "Score", "Reason", "Submitted"].map((h) => (
+                {["Student", "Test", "Score", "Reason", "Submitted", "Actions"].map((h) => (
                   <th key={h} className={th}>{h}</th>
                 ))}
               </tr>
@@ -101,14 +130,26 @@ export default function AdminProctoring() {
               {flagged.map((a) => (
                 <tr key={a._id} className="hover:bg-slate-50">
                   <td className={td}>
-                    <strong>{a.student?.name}</strong>
+                    <strong>{a.student?.name || "Deleted Student"}</strong>
                     <br />
-                    <span className="text-ink-soft text-xs font-mono">{a.student?.erpNumber} &middot; {a.student?.branch}</span>
+                    <span className="text-ink-soft text-xs font-mono">
+                      {a.student ? `${a.student.erpNumber} · ${a.student.branch}` : "Student record removed"}
+                    </span>
                   </td>
-                  <td className={td}>{a.test?.title}</td>
-                  <td className={td}>{a.totalScore} / {a.maxScore}</td>
-                  <td className={`${td} text-danger`}>{a.flagReason}</td>
-                  <td className={td}>{a.submittedAt ? new Date(a.submittedAt).toLocaleString() : "—"}</td>
+                  <td className={td}>{a.test?.title || "Deleted Test"}</td>
+                  <td className={`${td} whitespace-nowrap font-semibold`}>{a.totalScore} / {a.maxScore}</td>
+                  <td className={`${td} text-danger font-medium`}>{a.flagReason}</td>
+                  <td className={`${td} whitespace-nowrap font-mono text-xs text-slate-600`}>
+                    {a.submittedAt ? new Date(a.submittedAt).toLocaleString() : "—"}
+                  </td>
+                  <td className={`${td} whitespace-nowrap`}>
+                    <button
+                      onClick={() => handleClearSingle(a._id)}
+                      className="px-2 py-1 text-xs font-medium text-slate-600 hover:text-danger hover:bg-danger/10 rounded transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

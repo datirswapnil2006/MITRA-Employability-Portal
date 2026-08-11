@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { startAttempt, saveAnswer, runSample, submitAttempt } from "../api/tests";
 import useProctoring from "../hooks/useProctoring";
-import useAssessmentBehavior from "../hooks/useAssessmentBehavior";
+import LiveProctorCamera from "../components/test/LiveProctorCamera";
 import AssessmentExitConfirmModal from "../components/test/AssessmentExitConfirmModal";
 
 // Modern Test Components
@@ -41,7 +41,7 @@ export default function AttemptPage() {
   const saveTimers = useRef({});
 
   // Proctoring active during attempt
-  useProctoring(attemptId, {
+  const proctorState = useProctoring(attemptId, {
     enabled: !loading && !error && !submitting && !terminated,
     onAutoSubmit: (result) => setTerminated(result),
   });
@@ -344,6 +344,19 @@ export default function AttemptPage() {
         onLeave={handleConfirmLeaveAssessment}
         isWarningOnly={modalConfig.isWarningOnly}
       />
+
+      {/* Live Proctoring Floating Camera Overlay */}
+      {!loading && !error && !submitting && !terminated && (
+        <LiveProctorCamera
+          stream={proctorState.stream}
+          cameraStatus={proctorState.cameraStatus}
+          faceCount={proctorState.faceCount}
+          gazeStatus={proctorState.gazeStatus}
+          violationCount={proctorState.violationCount}
+          warningMessage={proctorState.warningMessage}
+          onDismissWarning={proctorState.dismissWarning}
+        />
+      )}
     </div>
   );
 }

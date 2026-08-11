@@ -1,3 +1,5 @@
+import path from "path";
+import fs from "fs";
 import User from "../models/User.js";
 import generateToken from "../utils/generateToken.js";
 import crypto from "crypto";
@@ -194,3 +196,67 @@ export const updateProfile = async (req, res) => {
     res.status(500).json({ message: "Failed to update profile", error: err.message });
   }
 };
+
+// @route POST /api/auth/profile-photo   (Admin only)
+export const uploadAdminProfilePhoto = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Forbidden: Only admin accounts can upload a profile photo." });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: "Please select an image file to upload." });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Delete previous avatar file if exists
+    if (user.profileImage) {
+      const oldRelative = user.profileImage.startsWith("/") ? user.profileImage.slice(1) : user.profileImage;
+      const oldPath = path.join(process.cwd(), oldRelative);
+      if (fs.existsSync(oldPath)) {
+        try { fs.unlinkSync(oldPath); } catch (e) { console.error("Error unlinking old avatar:", e); }
+      }
+    }
+
+    user.profileImage = `/uploads/avatars/${req.file.filename}`;
+    await user.save();
+
+    res.json({
+      message: "Profile photo updated successfully",
+      user: user.toSafeObject(),
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to upload profile photo", error: err.message });
+  }
+};
+
+// @route DELETE /api/auth/profile-photo   (Admin only)
+export const deleteAdminProfilePhoto = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Forbidden: Only admin accounts can modify profile photo." });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (user.profileImage) {
+      const oldRelative = user.profileImage.startsWith("/") ? user.profileImage.slice(1) : user.profileImage;
+      const oldPath = path.join(process.cwd(), oldRelative);
+      if (fs.existsSync(oldPath)) {
+        try { fs.unlinkSync(oldPath); } catch (e) { console.error("Error unlinking avatar:", e); }
+      }
+      user.profileImage = null;
+      await user.save();
+    }
+
+    res.json({
+      message: "Profile photo removed",
+      user: user.toSafeObject(),
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to remove profile photo", error: err.message });
+  }
+};
+

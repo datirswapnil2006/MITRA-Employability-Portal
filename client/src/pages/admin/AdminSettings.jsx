@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../components/DashboardLayout";
 import { useAuth } from "../../context/AuthContext";
 import { ADMIN_LINKS } from "./adminLinks";
-import { Settings as SettingsIcon, User, Shield, Key, Palette, Check } from "lucide-react";
+import { Settings as SettingsIcon, User, Shield, Palette, Check, Sun, Moon, Laptop, LayoutList, Columns, Camera, Upload, Trash2 } from "lucide-react";
+import { getFileUrl } from "../../utils/fileUrl";
+import { uploadAdminPhotoApi, deleteAdminPhotoApi, updateAdminProfileApi } from "../../api/admin";
 
 const navigateAdmin = (navigate) => (k) => {
   if (k === "overview") navigate("/admin");
@@ -17,47 +19,127 @@ const stampBtn = "bg-accent text-white rounded-lg px-5 py-2.5 font-semibold text
 
 export default function AdminSettings() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
+  const avatarInputRef = useRef(null);
   const [activeTab, setActiveTab] = useState("profile");
   const [saved, setSaved] = useState(false);
 
   // Profile
   const [name, setName] = useState(user?.name || "");
   const [email] = useState(user?.email || "");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+
+  // Sync state whenever user object changes in AuthContext
+  useEffect(() => {
+    if (user?.name) {
+      setName(user.name);
+    }
+  }, [user?.name]);
+
+  const handlePhotoSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    setPhotoError("");
+    try {
+      const formData = new FormData();
+      formData.append("photo", file);
+      const res = await uploadAdminPhotoApi(formData);
+      if (res?.user && updateUser) {
+        updateUser(res.user);
+      }
+      showSaved();
+    } catch (err) {
+      setPhotoError(err.response?.data?.message || "Failed to upload profile photo");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!window.confirm("Remove your profile photo?")) return;
+    setUploadingPhoto(true);
+    setPhotoError("");
+    try {
+      const res = await deleteAdminPhotoApi();
+      if (res?.user && updateUser) {
+        updateUser(res.user);
+      }
+      showSaved();
+    } catch (err) {
+      setPhotoError(err.response?.data?.message || "Failed to remove profile photo");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   // Password
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
 
   // System
   const [defaultDuration, setDefaultDuration] = useState(60);
   const [autoApprove, setAutoApprove] = useState(false);
   const [proctoringThreshold, setProctoringThreshold] = useState(5);
 
-  // Theme
+  // Appearance
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem("sidebar_collapsed") === "true";
+  });
 
   const showSaved = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    showSaved();
+    if (!name.trim()) return;
+    setSavingProfile(true);
+    setPhotoError("");
+    try {
+      const res = await updateAdminProfileApi({ name: name.trim() });
+      if (res?.user && updateUser) {
+        updateUser(res.user);
+      }
+      showSaved();
+    } catch (err) {
+      setPhotoError(err.response?.data?.message || "Failed to update profile name");
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
-  const handleSavePassword = (e) => {
+  const handleSavePassword = async (e) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      alert("Passwords do not match");
+      alert("New passwords do not match");
       return;
     }
-    showSaved();
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+    if (newPassword.length < 6) {
+      alert("Password must be at least 6 characters long");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      const res = await updateAdminProfileApi({ password: newPassword });
+      if (res?.user && updateUser) {
+        updateUser(res.user);
+      }
+      showSaved();
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to update password");
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
   const handleSaveSystem = (e) => {
@@ -68,6 +150,26 @@ export default function AdminSettings() {
   const handleThemeChange = (t) => {
     setTheme(t);
     localStorage.setItem("theme", t);
+    if (t === "dark") {
+      document.documentElement.classList.add("dark");
+    } else if (t === "light") {
+      document.documentElement.classList.remove("dark");
+    } else if (t === "system") {
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      if (prefersDark) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    }
+    window.dispatchEvent(new Event("themeChange"));
+    showSaved();
+  };
+
+  const handleSidebarChange = (collapsed) => {
+    setSidebarCollapsed(collapsed);
+    localStorage.setItem("sidebar_collapsed", JSON.stringify(collapsed));
+    window.dispatchEvent(new Event("sidebarChange"));
     showSaved();
   };
 
@@ -75,7 +177,6 @@ export default function AdminSettings() {
     { key: "profile", label: "Profile", icon: User },
     { key: "security", label: "Security", icon: Shield },
     { key: "system", label: "System", icon: SettingsIcon },
-    { key: "api", label: "API Keys", icon: Key },
     { key: "appearance", label: "Appearance", icon: Palette },
   ];
 
@@ -128,13 +229,65 @@ export default function AdminSettings() {
             <div className="bg-white border border-line rounded-xl p-6">
               <h2 className="font-display text-lg font-semibold mb-4">Profile Information</h2>
               <form onSubmit={handleSaveProfile}>
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-accent to-blue-400 flex items-center justify-center text-white text-xl font-bold">
-                    {name.charAt(0)?.toUpperCase() || "A"}
+                <div className="flex items-center gap-5 mb-6 pb-6 border-b border-line">
+                  <div className="relative group shrink-0">
+                    <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gradient-to-br from-accent to-blue-400 flex items-center justify-center text-white text-2xl font-bold border-2 border-line shadow-sm">
+                      {user?.profileImage ? (
+                        <img src={getFileUrl(user.profileImage)} alt={name} className="w-full h-full object-cover object-top" />
+                      ) : (
+                        name.charAt(0)?.toUpperCase() || "A"
+                      )}
+                    </div>
+                    {user?.role === "admin" && (
+                      <button
+                        type="button"
+                        onClick={() => avatarInputRef.current?.click()}
+                        className="absolute -bottom-1 -right-1 bg-accent text-white p-1.5 rounded-full shadow hover:bg-accent-hover transition-colors"
+                        title="Upload Profile Photo"
+                      >
+                        <Camera size={14} />
+                      </button>
+                    )}
                   </div>
+
                   <div>
-                    <div className="font-semibold text-ink">{name}</div>
-                    <div className="text-[13px] text-ink-soft">{email}</div>
+                    <div className="font-bold text-base text-ink">{name}</div>
+                    <div className="text-[13px] text-ink-soft mb-2.5">{email}</div>
+
+                    {user?.role === "admin" && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          ref={avatarInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handlePhotoSelect}
+                        />
+                        <button
+                          type="button"
+                          disabled={uploadingPhoto}
+                          onClick={() => avatarInputRef.current?.click()}
+                          className="px-3.5 py-1.5 rounded-lg bg-accent/10 text-accent hover:bg-accent hover:text-white transition-colors text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          <Upload size={13} /> {uploadingPhoto ? "Uploading..." : "Upload Photo"}
+                        </button>
+
+                        {user?.profileImage && (
+                          <button
+                            type="button"
+                            disabled={uploadingPhoto}
+                            onClick={handleRemovePhoto}
+                            className="px-3.5 py-1.5 rounded-lg border border-line text-ink-soft hover:text-danger hover:border-danger/30 transition-colors text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50"
+                          >
+                            <Trash2 size={13} /> Remove
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {photoError && (
+                      <p className="text-[11.5px] text-danger mt-1.5 font-medium">{photoError}</p>
+                    )}
                   </div>
                 </div>
                 <div className="mb-4">
@@ -146,7 +299,9 @@ export default function AdminSettings() {
                   <input className={`${input} bg-slate-50`} value={email} readOnly />
                   <p className="text-[11px] text-ink-soft mt-1">Email cannot be changed</p>
                 </div>
-                <button type="submit" className={stampBtn}>Save Profile</button>
+                <button type="submit" disabled={savingProfile} className={`${stampBtn} disabled:opacity-50`}>
+                  {savingProfile ? "Saving Profile..." : "Save Profile"}
+                </button>
               </form>
             </div>
           )}
@@ -167,7 +322,9 @@ export default function AdminSettings() {
                   <label className={labelCls}>Confirm New Password</label>
                   <input type="password" className={input} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
                 </div>
-                <button type="submit" className={stampBtn}>Update Password</button>
+                <button type="submit" disabled={savingPassword} className={`${stampBtn} disabled:opacity-50`}>
+                  {savingPassword ? "Updating Password..." : "Update Password"}
+                </button>
               </form>
             </div>
           )}
@@ -205,75 +362,101 @@ export default function AdminSettings() {
             </div>
           )}
 
-          {activeTab === "api" && (
-            <div className="bg-white border border-line rounded-xl p-6">
-              <h2 className="font-display text-lg font-semibold mb-4">API Keys</h2>
-              <div className="space-y-4">
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="font-semibold text-[13px] text-ink">HuggingFace API</div>
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wide text-success bg-success/10 px-2 py-0.5 rounded-full">
-                      <span className="text-[7px]">●</span> Connected
-                    </span>
-                  </div>
-                  <div className="text-[12px] text-ink-soft font-mono">hf_****************************Lkjw</div>
-                  <p className="text-[11px] text-ink-soft mt-2">
-                    Used for AI question generation and PDF text extraction. Configured via server .env file.
-                  </p>
-                </div>
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="font-semibold text-[13px] text-ink">Online Compiler API</div>
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wide text-success bg-success/10 px-2 py-0.5 rounded-full">
-                      <span className="text-[7px]">●</span> Connected
-                    </span>
-                  </div>
-                  <div className="text-[12px] text-ink-soft font-mono">12f9****************************29d</div>
-                  <p className="text-[11px] text-ink-soft mt-2">
-                    Used for running code submissions against test cases. Configured via server .env file.
-                  </p>
-                </div>
-                <div className="bg-slate-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="font-semibold text-[13px] text-ink">SMTP (Email)</div>
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wide text-success bg-success/10 px-2 py-0.5 rounded-full">
-                      <span className="text-[7px]">●</span> Configured
-                    </span>
-                  </div>
-                  <div className="text-[12px] text-ink-soft font-mono">dati*****@gmail.com</div>
-                  <p className="text-[11px] text-ink-soft mt-2">
-                    Used for password reset emails. Configured via server .env file.
-                  </p>
+          {activeTab === "appearance" && (
+            <div className="bg-white border border-line rounded-xl p-6 space-y-6">
+              <div>
+                <h2 className="font-display text-lg font-semibold mb-1">Theme Mode</h2>
+                <p className="text-[13px] text-ink-soft mb-4">Choose how the portal interface looks to you.</p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleThemeChange("light")}
+                    className={`p-4 rounded-xl border-2 transition-all text-left flex flex-col justify-between ${
+                      theme === "light" ? "border-accent bg-accent/5" : "border-line hover:border-accent/30"
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-amber-500 mb-3 border border-slate-200">
+                      <Sun size={18} />
+                    </div>
+                    <div>
+                      <div className="text-[13.5px] font-semibold text-ink flex items-center justify-between">
+                        Light {theme === "light" && <Check size={14} className="text-accent" />}
+                      </div>
+                      <div className="text-[11.5px] text-ink-soft mt-0.5">Clean & bright view</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleThemeChange("dark")}
+                    className={`p-4 rounded-xl border-2 transition-all text-left flex flex-col justify-between ${
+                      theme === "dark" ? "border-accent bg-accent/5" : "border-line hover:border-accent/30"
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-indigo-400 mb-3 border border-slate-700">
+                      <Moon size={18} />
+                    </div>
+                    <div>
+                      <div className="text-[13.5px] font-semibold text-ink flex items-center justify-between">
+                        Dark {theme === "dark" && <Check size={14} className="text-accent" />}
+                      </div>
+                      <div className="text-[11.5px] text-ink-soft mt-0.5">Sleek dark theme</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleThemeChange("system")}
+                    className={`p-4 rounded-xl border-2 transition-all text-left flex flex-col justify-between ${
+                      theme === "system" ? "border-accent bg-accent/5" : "border-line hover:border-accent/30"
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-slate-200 flex items-center justify-center text-slate-600 mb-3 border border-slate-300">
+                      <Laptop size={18} />
+                    </div>
+                    <div>
+                      <div className="text-[13.5px] font-semibold text-ink flex items-center justify-between">
+                        System {theme === "system" && <Check size={14} className="text-accent" />}
+                      </div>
+                      <div className="text-[11.5px] text-ink-soft mt-0.5">Match OS theme</div>
+                    </div>
+                  </button>
                 </div>
               </div>
-            </div>
-          )}
 
-          {activeTab === "appearance" && (
-            <div className="bg-white border border-line rounded-xl p-6">
-              <h2 className="font-display text-lg font-semibold mb-4">Appearance</h2>
-              <p className="text-[13px] text-ink-soft mb-4">Choose your preferred theme.</p>
-              <div className="grid grid-cols-2 gap-3 max-w-sm">
-                <button
-                  onClick={() => handleThemeChange("light")}
-                  className={`p-4 rounded-xl border-2 transition-all text-left ${
-                    theme === "light" ? "border-accent bg-accent/5" : "border-line hover:border-accent/30"
-                  }`}
-                >
-                  <div className="w-8 h-8 rounded-lg bg-white border border-line mb-2" />
-                  <div className="text-[13px] font-semibold text-ink">Light</div>
-                  <div className="text-[11px] text-ink-soft">Clean and bright</div>
-                </button>
-                <button
-                  onClick={() => handleThemeChange("dark")}
-                  className={`p-4 rounded-xl border-2 transition-all text-left ${
-                    theme === "dark" ? "border-accent bg-accent/5" : "border-line hover:border-accent/30"
-                  }`}
-                >
-                  <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 mb-2" />
-                  <div className="text-[13px] font-semibold text-ink">Dark</div>
-                  <div className="text-[11px] text-ink-soft">Easy on the eyes</div>
-                </button>
+              <div className="pt-5 border-t border-line">
+                <h3 className="font-semibold text-sm text-ink mb-1">Navigation Sidebar Layout</h3>
+                <p className="text-[12.5px] text-ink-soft mb-3">Select your preferred default sidebar navigation view.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
+                  <button
+                    type="button"
+                    onClick={() => handleSidebarChange(false)}
+                    className={`p-3.5 rounded-xl border-2 transition-all text-left flex items-center gap-3 ${
+                      !sidebarCollapsed ? "border-accent bg-accent/5" : "border-line hover:border-accent/30"
+                    }`}
+                  >
+                    <LayoutList size={20} className={!sidebarCollapsed ? "text-accent" : "text-ink-soft"} />
+                    <div>
+                      <div className="text-[13px] font-semibold text-ink">Expanded View</div>
+                      <div className="text-[11px] text-ink-soft">Full labels & icons</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSidebarChange(true)}
+                    className={`p-3.5 rounded-xl border-2 transition-all text-left flex items-center gap-3 ${
+                      sidebarCollapsed ? "border-accent bg-accent/5" : "border-line hover:border-accent/30"
+                    }`}
+                  >
+                    <Columns size={20} className={sidebarCollapsed ? "text-accent" : "text-ink-soft"} />
+                    <div>
+                      <div className="text-[13px] font-semibold text-ink">Compact View</div>
+                      <div className="text-[11px] text-ink-soft">Icon-only mode</div>
+                    </div>
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -290,3 +473,4 @@ export default function AdminSettings() {
     </DashboardLayout>
   );
 }
+

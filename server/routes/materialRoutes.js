@@ -4,7 +4,7 @@ import path from "path";
 import {
   getAllMaterials, getMaterialCategories,
   createMaterial, updateMaterial,
-  toggleMaterial, deleteMaterial,
+  toggleMaterial, deleteMaterial, downloadMaterialFile,
 } from "../controllers/materialController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
@@ -45,6 +45,8 @@ const handleFileUpload = (req, res, next) => {
 
 router.get("/", protect, authorize("admin", "student"), getAllMaterials);
 router.get("/categories", protect, authorize("admin", "student"), getMaterialCategories);
+router.get("/:id/download", protect, authorize("admin", "student"), downloadMaterialFile);
+router.post("/:id/download", protect, authorize("admin", "student"), downloadMaterialFile);
 router.post("/", protect, authorize("admin"), handleFileUpload, createMaterial);
 router.put("/:id", protect, authorize("admin"), updateMaterial);
 router.patch("/:id/toggle", protect, authorize("admin"), toggleMaterial);
