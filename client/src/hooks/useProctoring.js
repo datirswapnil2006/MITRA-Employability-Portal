@@ -6,8 +6,12 @@ const MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@mas
 const FAST_FACE_CHECK_INTERVAL_MS = 500; // Sub-second real-time verification
 const EVENT_COOLDOWN_MS = 4000; // Cooldown per event type to prevent log flooding
 
-export default function useProctoring(attemptId, { enabled = true, onAutoSubmit } = {}) {
-  const [stream, setStream] = useState(null);
+export default function useProctoring(
+  attemptId,
+  { enabled = true, initialStream = null, initialScreenStream = null, onAutoSubmit } = {}
+) {
+  const [stream, setStream] = useState(initialStream);
+  const [screenStream, setScreenStream] = useState(initialScreenStream);
   const [cameraStatus, setCameraStatus] = useState("initializing"); // initializing | active | warning | error
   const [faceCount, setFaceCount] = useState(1);
   const [gazeStatus, setGazeStatus] = useState("centered"); // centered | looking_away
@@ -16,7 +20,7 @@ export default function useProctoring(attemptId, { enabled = true, onAutoSubmit 
 
   const lastLoggedRef = useRef({});
   const videoRef = useRef(null);
-  const streamRef = useRef(null);
+  const streamRef = useRef(initialStream);
   const intervalRef = useRef(null);
   const modelsReadyRef = useRef(false);
   const terminatedRef = useRef(false);
@@ -51,6 +55,24 @@ export default function useProctoring(attemptId, { enabled = true, onAutoSubmit 
     },
     [attemptId, onAutoSubmit]
   );
+
+  // Screen sharing track ended listener
+  useEffect(() => {
+    if (!enabled || !screenStream) return;
+    const tracks = screenStream.getVideoTracks();
+    if (tracks.length === 0) return;
+
+    const handleScreenEnded = () => {
+      setCameraStatus("warning");
+      setWarningMessage("⚠️ Screen Sharing Stopped! Maintaining active screen share is required.");
+      log("screen_share_interrupted", "Candidate stopped screen sharing track");
+    };
+
+    tracks[0].addEventListener("ended", handleScreenEnded);
+    return () => {
+      tracks[0].removeEventListener("ended", handleScreenEnded);
+    };
+  }, [enabled, screenStream, log]);
 
   // Tab switch, full-screen, copy/paste, context menu listeners
   useEffect(() => {
@@ -114,17 +136,30 @@ export default function useProctoring(attemptId, { enabled = true, onAutoSubmit 
           modelsReadyRef.current = true;
         }
 
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { max: 30 } },
-        });
+        let mediaStream = initialStream;
+        if (!mediaStream) {
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { max: 30 } },
+          });
+        }
 
         if (cancelled) {
-          mediaStream.getTracks().forEach((t) => t.stop());
+          if (!initialStream) mediaStream.getTracks().forEach((t) => t.stop());
           return;
         }
 
         streamRef.current = mediaStream;
         setStream(mediaStream);
+
+        // Listen for hardware disconnection
+        const videoTracks = mediaStream.getVideoTracks();
+        if (videoTracks.length > 0) {
+          videoTracks[0].onended = () => {
+            setCameraStatus("error");
+            setWarningMessage("⚠️ Camera Disconnected! Check hardware connection.");
+            log("camera_unavailable", "Video track ended unexpectedly");
+          };
+        }
 
         const video = document.createElement("video");
         video.srcObject = mediaStream;
@@ -161,7 +196,12 @@ export default function useProctoring(attemptId, { enabled = true, onAutoSubmit 
               multiFaceCountRef.current = 0;
               gazeAwayCountRef.current = 0;
 
-              if (noFaceCountRef.current >= 3) {
+              if (noFaceCountRef.current >= 10) {
+                // 5.0s of prolonged absence
+                setCameraStatus("warning");
+                setWarningMessage("⚠️ Prolonged Face Absence! Return to camera immediately.");
+                log("prolonged_no_face", "Face absent for > 5 seconds");
+              } else if (noFaceCountRef.current >= 3) {
                 // 1.5s of absence
                 setCameraStatus("warning");
                 setWarningMessage("⚠️ Candidate Face Absent! Please remain in front of the camera.");
@@ -207,6 +247,10 @@ export default function useProctoring(attemptId, { enabled = true, onAutoSubmit 
                 gazeAwayCountRef.current = 0;
                 setGazeStatus("centered");
                 setCameraStatus("active");
+                // Clear warning if candidate has returned to normal posture
+                if (frozenCountRef.current === 0) {
+                  setWarningMessage(null);
+                }
               }
             }
           } catch {
@@ -225,13 +269,14 @@ export default function useProctoring(attemptId, { enabled = true, onAutoSubmit 
     return () => {
       cancelled = true;
       if (intervalRef.current) clearInterval(intervalRef.current);
-      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+      if (streamRef.current && !initialStream) streamRef.current.getTracks().forEach((t) => t.stop());
       if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
     };
-  }, [enabled, attemptId, log]);
+  }, [enabled, attemptId, initialStream, log]);
 
   return {
     stream,
+    screenStream,
     cameraStatus,
     faceCount,
     gazeStatus,

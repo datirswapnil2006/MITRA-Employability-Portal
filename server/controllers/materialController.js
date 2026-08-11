@@ -43,8 +43,12 @@ export const createMaterial = async (req, res) => {
     }
 
     let finalFileUrl = fileUrl;
-    if (type === "pdf" && req.file) {
-      finalFileUrl = `/uploads/materials/${req.file.filename}`;
+    if (type === "pdf") {
+      if (req.file) {
+        finalFileUrl = `/uploads/materials/${req.file.filename}`;
+      } else if (!fileUrl) {
+        return res.status(400).json({ message: "Please upload a PDF file or provide a direct PDF URL" });
+      }
     }
 
     const material = await StudyMaterial.create({
@@ -126,13 +130,16 @@ export const downloadMaterialFile = async (req, res) => {
     }
 
     if (material.type === "pdf" && material.fileUrl) {
+      if (material.fileUrl.startsWith("http://") || material.fileUrl.startsWith("https://")) {
+        return res.redirect(material.fileUrl);
+      }
       const relativePath = material.fileUrl.startsWith("/") ? material.fileUrl.slice(1) : material.fileUrl;
       const fullPath = path.join(process.cwd(), relativePath);
       if (fs.existsSync(fullPath)) {
         const downloadName = `${material.title.replace(/[^a-zA-Z0-9_-]/g, "_")}.pdf`;
         return res.download(fullPath, downloadName);
       } else {
-        return res.status(404).json({ message: "PDF file not found on server. Please re-upload this material." });
+        return res.status(404).json({ message: "PDF file not found on server. Ephemeral server storage cleared local uploads on restart. Please re-upload this material or provide a direct URL." });
       }
     }
 

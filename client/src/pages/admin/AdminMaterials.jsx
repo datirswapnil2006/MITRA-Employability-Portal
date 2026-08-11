@@ -81,7 +81,10 @@ export default function AdminMaterials() {
       formData.append("type", formType);
       if (formType === "link") formData.append("fileUrl", formUrl);
       if (formType === "note") formData.append("content", formContent);
-      if (formType === "pdf" && formFile) formData.append("file", formFile);
+      if (formType === "pdf") {
+        if (formUrl) formData.append("fileUrl", formUrl);
+        if (formFile) formData.append("file", formFile);
+      }
 
       const created = await createMaterial(formData);
       setMaterials((m) => [created, ...m]);
@@ -386,10 +389,10 @@ export default function AdminMaterials() {
 
               {formType === "pdf" && (
                 <div className="mb-4">
-                  <label className={labelCls}>PDF File</label>
+                  <label className={labelCls}>PDF File or Cloud URL</label>
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-line rounded-xl p-6 text-center cursor-pointer hover:border-accent/50 transition-colors"
+                    className="border-2 border-dashed border-line rounded-xl p-5 text-center cursor-pointer hover:border-accent/50 transition-colors mb-2"
                   >
                     <input ref={fileInputRef} type="file" accept="application/pdf" onChange={(e) => setFormFile(e.target.files?.[0])} className="hidden" />
                     {formFile ? (
@@ -402,11 +405,21 @@ export default function AdminMaterials() {
                       </div>
                     ) : (
                       <>
-                        <Upload size={24} className="mx-auto text-ink-soft mb-2" />
-                        <p className="text-[13px] text-ink-soft">Click to upload (max 50MB)</p>
+                        <Upload size={24} className="mx-auto text-ink-soft mb-1.5" />
+                        <p className="text-[13px] text-ink-soft">Click to upload local PDF (max 50MB)</p>
                       </>
                     )}
                   </div>
+                  <div className="text-center text-[11px] text-ink-soft font-semibold my-1 uppercase">OR Direct Link</div>
+                  <input
+                    className={input}
+                    value={formUrl}
+                    onChange={(e) => setFormUrl(e.target.value)}
+                    placeholder="https://example.com/file.pdf or Cloudinary/Google Drive link"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Tip: Direct cloud links persist across Render server restarts without file loss.
+                  </p>
                 </div>
               )}
 

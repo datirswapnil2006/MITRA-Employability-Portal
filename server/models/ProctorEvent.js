@@ -9,6 +9,10 @@ export const EVENT_TYPES = [
   "no_face",
   "multiple_faces",
   "camera_unavailable",
+  "screen_share_interrupted",
+  "camera_frozen",
+  "suspicious_gaze",
+  "prolonged_no_face",
 ];
 
 export const SEVERITY_LEVELS = ["Low", "Medium", "High", "Critical"];
@@ -20,8 +24,7 @@ export const SEVERITY_LEVELS = ["Low", "Medium", "High", "Critical"];
 export const SEVERITY_WEIGHT = { Low: 1, Medium: 3, High: 6, Critical: 15 };
 export const AUTO_SUBMIT_THRESHOLD = 15;
 
-// Default severity per event type — used as a fallback if the client
-// doesn't specify one, and kept here so grading policy lives in one place.
+// Default severity per event type
 export const DEFAULT_SEVERITY = {
   tab_switch: "Medium",
   fullscreen_exit: "High",
@@ -31,6 +34,10 @@ export const DEFAULT_SEVERITY = {
   no_face: "Medium",
   multiple_faces: "Critical",
   camera_unavailable: "Low",
+  screen_share_interrupted: "High",
+  camera_frozen: "Medium",
+  suspicious_gaze: "Medium",
+  prolonged_no_face: "High",
 };
 
 export const EVENT_LABEL = {
@@ -42,6 +49,25 @@ export const EVENT_LABEL = {
   no_face: "No face detected",
   multiple_faces: "Multiple faces detected",
   camera_unavailable: "Camera unavailable",
+  screen_share_interrupted: "Screen share interrupted",
+  camera_frozen: "Camera feed frozen",
+  suspicious_gaze: "Suspicious gaze / Head movement",
+  prolonged_no_face: "Prolonged face absence",
+};
+
+export const getProctoringStatus = (events = [], autoSubmitted = false) => {
+  if (autoSubmitted) return "Critical";
+  const hasCritical = events.some((e) => e.severity === "Critical");
+  if (hasCritical) return "Critical";
+
+  const totalScore = events.reduce((sum, e) => sum + (SEVERITY_WEIGHT[e.severity] || 0), 0);
+  if (totalScore >= AUTO_SUBMIT_THRESHOLD) return "Critical";
+
+  const hasHigh = events.some((e) => e.severity === "High");
+  if (totalScore >= 6 || hasHigh) return "Suspicious";
+  if (totalScore >= 1 || events.length > 0) return "Warning";
+
+  return "Secure";
 };
 
 const proctorEventSchema = new mongoose.Schema(

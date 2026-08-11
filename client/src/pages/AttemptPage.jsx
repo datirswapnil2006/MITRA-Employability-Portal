@@ -4,6 +4,7 @@ import { startAttempt, saveAnswer, runSample, submitAttempt } from "../api/tests
 import useProctoring from "../hooks/useProctoring";
 import LiveProctorCamera from "../components/test/LiveProctorCamera";
 import AssessmentExitConfirmModal from "../components/test/AssessmentExitConfirmModal";
+import PreTestSecurityCheckModal from "../components/test/PreTestSecurityCheckModal";
 
 // Modern Test Components
 import TestHeader from "../components/test/TestHeader";
@@ -40,9 +41,16 @@ export default function AttemptPage() {
 
   const saveTimers = useRef({});
 
-  // Proctoring active during attempt
+  const [showPreTestModal, setShowPreTestModal] = useState(false);
+  const [securityVerified, setSecurityVerified] = useState(false);
+  const [initialCamStream, setInitialCamStream] = useState(null);
+  const [initialScreenStream, setInitialScreenStream] = useState(null);
+
+  // Proctoring active during attempt once pre-test verification passes
   const proctorState = useProctoring(attemptId, {
-    enabled: !loading && !error && !submitting && !terminated,
+    enabled: securityVerified && !loading && !error && !submitting && !terminated,
+    initialStream: initialCamStream,
+    initialScreenStream,
     onAutoSubmit: (result) => setTerminated(result),
   });
 
@@ -105,9 +113,10 @@ export default function AttemptPage() {
           };
         });
         setAnswers(map);
-
-        const remaining = Math.max(0, Math.floor((new Date(data.endsAt) - new Date()) / 1000));
+        const endsAt = new Date(data.endsAt).getTime();
+        const remaining = Math.max(0, Math.floor((endsAt - Date.now()) / 1000));
         setRemainingSec(remaining);
+        setShowPreTestModal(true);
       })
       .catch((e) => setError(e.response?.data?.message || "Could not start this test"))
       .finally(() => setLoading(false));
@@ -345,8 +354,22 @@ export default function AttemptPage() {
         isWarningOnly={modalConfig.isWarningOnly}
       />
 
+      {/* Mandatory Pre-Test Security & System Check Wizard */}
+      <PreTestSecurityCheckModal
+        isOpen={showPreTestModal && !securityVerified}
+        testTitle={test?.title || "Official Placement Assessment"}
+        requireScreenShare={Boolean(test?.navigationPolicySettings?.requireScreenShare)}
+        onStartTest={({ cameraStream, screenStream }) => {
+          setInitialCamStream(cameraStream);
+          setInitialScreenStream(screenStream);
+          setSecurityVerified(true);
+          setShowPreTestModal(false);
+          document.documentElement.requestFullscreen?.().catch(() => {});
+        }}
+      />
+
       {/* Live Proctoring Floating Camera Overlay */}
-      {!loading && !error && !submitting && !terminated && (
+      {!loading && !error && !submitting && !terminated && securityVerified && Boolean(attemptId) && (
         <LiveProctorCamera
           stream={proctorState.stream}
           cameraStatus={proctorState.cameraStatus}

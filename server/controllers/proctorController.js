@@ -1,5 +1,5 @@
 import Attempt from "../models/Attempt.js";
-import ProctorEvent from "../models/ProctorEvent.js";
+import ProctorEvent, { getProctoringStatus } from "../models/ProctorEvent.js";
 import { DEFAULT_SEVERITY, EVENT_TYPES, SEVERITY_WEIGHT, AUTO_SUBMIT_THRESHOLD, EVENT_LABEL } from "../models/ProctorEvent.js";
 import { gradeAttempt } from "./attemptController.js";
 
@@ -72,8 +72,9 @@ export const getEvents = async (req, res) => {
     if (req.query.studentId) filter.student = req.query.studentId;
 
     let events = await ProctorEvent.find(filter)
-      .populate("student", "name erpNumber branch")
-      .populate("test", "title")
+      .populate("student", "name erpNumber branch email")
+      .populate("test", "title category")
+      .populate("attempt", "status totalScore maxScore startedAt submittedAt autoSubmitted flagReason")
       .sort({ occurredAt: -1 })
       .limit(500);
 

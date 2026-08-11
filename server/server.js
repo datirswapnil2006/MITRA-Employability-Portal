@@ -44,7 +44,7 @@ app.use(express.json());
 // Serve uploaded files statically
 app.use("/uploads", express.static("uploads"));
 app.use("/uploads", (req, res) => {
-  res.status(404).json({ message: "Requested upload file not found on server." });
+  res.status(404).json({ message: "Requested upload file not found on server. Ephemeral server storage may have cleared local files on restart. Please re-upload or use a persistent URL." });
 });
 
 app.use("/api/auth", authRoutes);

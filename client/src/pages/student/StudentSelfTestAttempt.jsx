@@ -46,10 +46,9 @@ export default function StudentSelfTestAttempt() {
   const [fontSize, setFontSize] = useState("base");
   const saveTimers = useRef({});
 
-  // Continuous Proctoring & Live Camera Feed
+  // Practice Test Exception: Proctoring disabled for practice drills
   const proctorState = useProctoring(id, {
-    enabled: !loading && !error && !submitting && !submittedResult,
-    onAutoSubmit: () => handleSubmit("Auto-submitted due to proctoring violations"),
+    enabled: false,
   });
 
   useEffect(() => {
@@ -485,18 +484,7 @@ export default function StudentSelfTestAttempt() {
         submitting={submitting}
       />
 
-      {/* Live Proctoring Floating Camera Overlay */}
-      {!loading && !error && !submitting && !submittedResult && (
-        <LiveProctorCamera
-          stream={proctorState.stream}
-          cameraStatus={proctorState.cameraStatus}
-          faceCount={proctorState.faceCount}
-          gazeStatus={proctorState.gazeStatus}
-          violationCount={proctorState.violationCount}
-          warningMessage={proctorState.warningMessage}
-          onDismissWarning={proctorState.dismissWarning}
-        />
-      )}
+
     </div>
   );
 }

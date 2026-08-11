@@ -9,6 +9,7 @@ import useProctoring from "../../hooks/useProctoring";
 import LiveProctorCamera from "../../components/test/LiveProctorCamera";
 import useAssessmentBehavior from "../../hooks/useAssessmentBehavior";
 import AssessmentExitConfirmModal from "../../components/test/AssessmentExitConfirmModal";
+import PreTestSecurityCheckModal from "../../components/test/PreTestSecurityCheckModal";
 import {
   Brain,
   Clock,
@@ -37,6 +38,7 @@ export default function StudentPsychometricAttempt() {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [timeLeftSeconds, setTimeLeftSeconds] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -45,9 +47,16 @@ export default function StudentPsychometricAttempt() {
   const [submitting, setSubmitting] = useState(false);
   const timerRef = useRef(null);
 
+  const [showPreTestModal, setShowPreTestModal] = useState(false);
+  const [securityVerified, setSecurityVerified] = useState(false);
+  const [initialCamStream, setInitialCamStream] = useState(null);
+  const [initialScreenStream, setInitialScreenStream] = useState(null);
+
   // Continuous AI Proctoring & Live Camera Feed
   const proctorState = useProctoring(attemptId, {
-    enabled: !loading && !error && !submitting && Boolean(attemptId),
+    enabled: securityVerified && !loading && !error && !submitting && Boolean(attemptId),
+    initialStream: initialCamStream,
+    initialScreenStream,
     onAutoSubmit: (result) => handleAutoSubmitWithReason("Auto-submitted due to proctoring violations", result?.auditLogs || []),
   });
 
@@ -106,6 +115,7 @@ export default function StudentPsychometricAttempt() {
         const endsAt = new Date(data.endsAt).getTime();
         const diff = Math.max(0, Math.floor((endsAt - Date.now()) / 1000));
         setTimeLeftSeconds(diff);
+        setShowPreTestModal(true);
       })
       .catch((err) => {
         if (err.response?.status === 409 && err.response?.data?.attemptId) {
@@ -445,8 +455,22 @@ export default function StudentPsychometricAttempt() {
         isWarningOnly={modalConfig.isWarningOnly}
       />
 
+      {/* Mandatory Pre-Test Security & System Check Wizard */}
+      <PreTestSecurityCheckModal
+        isOpen={showPreTestModal && !securityVerified}
+        testTitle={test?.title || "Psychometric Profiling Assessment"}
+        requireScreenShare={Boolean(test?.navigationPolicySettings?.requireScreenShare)}
+        onStartTest={({ cameraStream, screenStream }) => {
+          setInitialCamStream(cameraStream);
+          setInitialScreenStream(screenStream);
+          setSecurityVerified(true);
+          setShowPreTestModal(false);
+          document.documentElement.requestFullscreen?.().catch(() => {});
+        }}
+      />
+
       {/* Live Proctoring Floating Camera Overlay */}
-      {!loading && !error && !submitting && Boolean(attemptId) && (
+      {!loading && !error && !submitting && securityVerified && Boolean(attemptId) && (
         <LiveProctorCamera
           stream={proctorState.stream}
           cameraStatus={proctorState.cameraStatus}
