@@ -200,11 +200,18 @@ export default function AttemptPage() {
             <ShieldAlert size={32} />
           </div>
           <div className="font-mono text-xs font-bold uppercase tracking-widest text-rose-600 mb-2">
-            Test Integrity Flagged
+            Proctoring Limit Reached (3/3)
           </div>
-          <h1 className="font-display text-2xl font-bold mb-3 text-slate-900">Test Automatically Submitted</h1>
-          <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-6">
-            This attempt was submitted automatically due to repeated integrity violations detected by the proctoring engine (e.g. exiting fullscreen mode, switching windows, or face detection anomalies).
+          <h1 className="font-display text-2xl font-bold mb-3 text-slate-900">Assessment Automatically Submitted</h1>
+          <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-4">
+            Your assessment was automatically submitted because the maximum allowed proctoring violations (3) was reached.
+          </p>
+          <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 mb-6 text-left text-xs text-rose-900">
+            <strong className="block font-bold mb-1">Reason:</strong>
+            <span>Repeated confirmed proctoring violations were detected during the assessment.</span>
+          </div>
+          <p className="text-slate-500 text-xs mb-6">
+            If you believe this was caused by a technical issue, please contact the assessment administrator.
           </p>
           <button
             className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 py-3 font-bold text-xs transition-all shadow-xs cursor-pointer"

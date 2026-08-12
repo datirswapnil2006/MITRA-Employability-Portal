@@ -1,4 +1,5 @@
 import Attempt from "../models/Attempt.js";
+import PsychometricAttempt from "../models/PsychometricAttempt.js";
 import ProctorEvent, { getProctoringStatus } from "../models/ProctorEvent.js";
 import { DEFAULT_SEVERITY, EVENT_TYPES, SEVERITY_WEIGHT, AUTO_SUBMIT_THRESHOLD, EVENT_LABEL } from "../models/ProctorEvent.js";
 import { gradeAttempt } from "./attemptController.js";
@@ -10,7 +11,13 @@ import { gradeAttempt } from "./attemptController.js";
 // the attempt is force-submitted and flagged for admin review right here.
 export const logEvent = async (req, res) => {
   try {
-    const attempt = await Attempt.findById(req.params.attemptId);
+    let attempt = await Attempt.findById(req.params.attemptId);
+    let isPsychometric = false;
+    if (!attempt) {
+      attempt = await PsychometricAttempt.findById(req.params.attemptId);
+      if (attempt) isPsychometric = true;
+    }
+
     if (!attempt || String(attempt.student) !== String(req.user._id)) {
       return res.status(404).json({ message: "Attempt not found" });
     }
@@ -25,7 +32,7 @@ export const logEvent = async (req, res) => {
     await ProctorEvent.create({
       attempt: attempt._id,
       student: attempt.student,
-      test: attempt.test,
+      test: isPsychometric ? attempt.psychometricTest : attempt.test,
       type,
       severity,
       detail: detail || "",
@@ -45,14 +52,22 @@ export const logEvent = async (req, res) => {
       attempt.flagged = true;
       attempt.autoSubmitted = true;
       attempt.flagReason = reason;
-      await gradeAttempt(attempt); // grades, sets status "submitted", saves
+      attempt.exitReason = "Auto-submitted due to proctoring violations";
+
+      if (isPsychometric) {
+        attempt.status = "submitted";
+        attempt.completedAt = new Date();
+        await attempt.save();
+      } else {
+        await gradeAttempt(attempt); // grades, sets status "submitted", saves
+      }
 
       return res.status(201).json({
         logged: true,
         autoSubmitted: true,
         reason,
-        totalScore: attempt.totalScore,
-        maxScore: attempt.maxScore,
+        totalScore: attempt.totalScore || 0,
+        maxScore: attempt.maxScore || 0,
       });
     }
 

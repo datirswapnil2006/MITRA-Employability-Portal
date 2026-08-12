@@ -17,8 +17,23 @@ export default function LiveProctorCamera({
   const videoRef = useRef(null);
 
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
+    const videoEl = videoRef.current;
+    if (!videoEl || !stream) return;
+
+    if (videoEl.srcObject !== stream) {
+      videoEl.srcObject = stream;
+    }
+
+    const handlePlay = () => {
+      videoEl.play().catch((err) => {
+        console.warn("LiveProctorCamera play error:", err);
+      });
+    };
+
+    if (videoEl.readyState >= 1) {
+      handlePlay();
+    } else {
+      videoEl.onloadedmetadata = handlePlay;
     }
   }, [stream]);
 
@@ -129,7 +144,7 @@ export default function LiveProctorCamera({
             {violationCount > 0 && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-rose-950/80 text-rose-300 border border-rose-500/30 backdrop-blur-md">
                 <ShieldAlert size={10} />
-                {violationCount} Violations
+                {Math.min(3, violationCount)}/3 Violations
               </span>
             )}
           </div>

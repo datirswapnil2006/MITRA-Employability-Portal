@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Check,
   FileText,
+  ShieldAlert,
 } from "lucide-react";
 
 const LIKERT_LABELS = [
@@ -45,20 +46,13 @@ export default function StudentPsychometricAttempt() {
   const [saveStatus, setSaveStatus] = useState("saved");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [terminated, setTerminated] = useState(null);
   const timerRef = useRef(null);
 
   const [showPreTestModal, setShowPreTestModal] = useState(false);
   const [securityVerified, setSecurityVerified] = useState(false);
   const [initialCamStream, setInitialCamStream] = useState(null);
   const [initialScreenStream, setInitialScreenStream] = useState(null);
-
-  // Continuous AI Proctoring & Live Camera Feed
-  const proctorState = useProctoring(attemptId, {
-    enabled: securityVerified && !loading && !error && !submitting && Boolean(attemptId),
-    initialStream: initialCamStream,
-    initialScreenStream,
-    onAutoSubmit: (result) => handleAutoSubmitWithReason("Auto-submitted due to proctoring violations", result?.auditLogs || []),
-  });
 
   const handleAutoSubmitWithReason = useCallback(
     async (exitReason = "Manual Submission", auditLogs = [], violationCount = 0) => {
@@ -67,14 +61,27 @@ export default function StudentPsychometricAttempt() {
       proctorState.stopAllProctoring();
       try {
         await submitPsychometricAttempt(attemptId, { exitReason, auditLogs, violationCount });
-        navigate("/student/psychometric");
       } catch (err) {
-        alert(err.response?.data?.message || "Assessment submission error");
-        navigate("/student/psychometric");
+        console.warn("Psychometric submit error:", err);
       }
     },
-    [attemptId, submitting, navigate, proctorState]
+    [attemptId, submitting, proctorState]
   );
+
+  // Continuous AI Proctoring & Live Camera Feed
+  const proctorState = useProctoring(attemptId, {
+    enabled: securityVerified && !loading && !error && !submitting && !terminated && Boolean(attemptId),
+    initialStream: initialCamStream,
+    initialScreenStream,
+    onAutoSubmit: (result) => {
+      setTerminated(result || true);
+      handleAutoSubmitWithReason(
+        "Repeated confirmed proctoring violations were detected during the assessment.",
+        result?.auditLogs || [],
+        3
+      );
+    },
+  });
 
   const {
     showExitModal,
@@ -192,6 +199,38 @@ export default function StudentPsychometricAttempt() {
             className="bg-indigo-600 text-white rounded-xl px-5 py-2.5 text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-2xs cursor-pointer"
           >
             Back to Assessment List
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (terminated) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-900 flex items-center justify-center p-6">
+        <div className="max-w-lg text-center bg-white border border-slate-200 p-8 sm:p-10 rounded-2xl shadow-2xl relative overflow-hidden">
+          <div className="w-16 h-16 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 mx-auto mb-4">
+            <ShieldAlert size={32} />
+          </div>
+          <div className="font-mono text-xs font-bold uppercase tracking-widest text-rose-600 mb-2">
+            Proctoring Limit Reached (3/3)
+          </div>
+          <h1 className="font-display text-2xl font-bold mb-3 text-slate-900">Assessment Automatically Submitted</h1>
+          <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-4">
+            Your assessment was automatically submitted because the maximum allowed proctoring violations (3) was reached.
+          </p>
+          <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 mb-6 text-left text-xs text-rose-900">
+            <strong className="block font-bold mb-1">Reason:</strong>
+            <span>Repeated confirmed proctoring violations were detected during the assessment.</span>
+          </div>
+          <p className="text-slate-500 text-xs mb-6">
+            If you believe this was caused by a technical issue, please contact the assessment administrator.
+          </p>
+          <button
+            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 py-3 font-bold text-xs transition-all shadow-xs cursor-pointer"
+            onClick={() => navigate("/student/psychometric")}
+          >
+            Return to Psychometric Hub
           </button>
         </div>
       </div>

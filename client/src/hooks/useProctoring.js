@@ -29,6 +29,19 @@ export default function useProctoring(
   const terminatedRef = useRef(false);
   const cleanedUpRef = useRef(false);
 
+  const violationCountRef = useRef(0);
+  const auditLogsRef = useRef([]);
+
+  // Consecutive trackers for robust debouncing & absence session statefulness
+  const noFaceCountRef = useRef(0);
+  const noFaceViolationLoggedRef = useRef(false);
+  const multiFaceCountRef = useRef(0);
+  const multiFaceViolationLoggedRef = useRef(false);
+  const gazeAwayCountRef = useRef(0);
+  const gazeAwayViolationLoggedRef = useRef(false);
+  const lastVideoTimeRef = useRef(0);
+  const frozenCountRef = useRef(0);
+
   // Sync refs when props change
   useEffect(() => {
     if (initialStream) {
@@ -45,41 +58,15 @@ export default function useProctoring(
     }
   }, [initialScreenStream]);
 
-  // Consecutive trackers for robust debouncing
-  const noFaceCountRef = useRef(0);
-  const multiFaceCountRef = useRef(0);
-  const gazeAwayCountRef = useRef(0);
-  const lastVideoTimeRef = useRef(0);
-  const frozenCountRef = useRef(0);
-
   const dismissWarning = useCallback(() => {
     setWarningMessage(null);
   }, []);
-
-  const log = useCallback(
-    (type, detail = "") => {
-      if (!attemptId || terminatedRef.current || !enabled) return;
-      const now = Date.now();
-      const last = lastLoggedRef.current[type] || 0;
-      if (now - last < EVENT_COOLDOWN_MS) return;
-      lastLoggedRef.current[type] = now;
-
-      setViolationCount((prev) => prev + 1);
-
-      logProctorEvent(attemptId, type, detail).then((result) => {
-        if (result?.autoSubmitted && !terminatedRef.current) {
-          terminatedRef.current = true;
-          onAutoSubmit?.(result);
-        }
-      });
-    },
-    [attemptId, enabled, onAutoSubmit]
-  );
 
   // Stop all proctoring media streams and clean up browser state safely
   const stopAllProctoring = useCallback(() => {
     if (cleanedUpRef.current) return;
     cleanedUpRef.current = true;
+    terminatedRef.current = true;
 
     // 1. Clear detection loop interval
     if (intervalRef.current) {
@@ -133,6 +120,44 @@ export default function useProctoring(
     setCameraStatus("error");
   }, []);
 
+  const log = useCallback(
+    (type, detail = "", isViolation = true) => {
+      if (!attemptId || terminatedRef.current || !enabled) return;
+      const now = Date.now();
+      const last = lastLoggedRef.current[type] || 0;
+      if (now - last < EVENT_COOLDOWN_MS) return;
+      lastLoggedRef.current[type] = now;
+
+      let newCount = violationCountRef.current;
+      if (isViolation) {
+        violationCountRef.current = Math.min(3, violationCountRef.current + 1);
+        newCount = violationCountRef.current;
+        setViolationCount(newCount);
+      }
+
+      auditLogsRef.current.push({
+        action: type,
+        details: detail,
+        timestamp: new Date().toISOString(),
+      });
+
+      logProctorEvent(attemptId, type, detail).then((result) => {
+        if ((result?.autoSubmitted || newCount >= 3) && !terminatedRef.current) {
+          terminatedRef.current = true;
+          stopAllProctoring();
+          onAutoSubmit?.({
+            ...result,
+            autoSubmitted: true,
+            exitReason: "Repeated confirmed proctoring violations were detected during the assessment.",
+            violationCount: 3,
+            auditLogs: auditLogsRef.current,
+          });
+        }
+      });
+    },
+    [attemptId, enabled, onAutoSubmit, stopAllProctoring]
+  );
+
   // Screen sharing track ended listener
   useEffect(() => {
     if (!enabled || !screenStream) return;
@@ -143,7 +168,7 @@ export default function useProctoring(
       setIsScreenShareActive(false);
       setCameraStatus("warning");
       setWarningMessage("⚠️ Screen Sharing Stopped! Maintaining active screen share is required.");
-      log("screen_share_interrupted", "Candidate stopped screen sharing track");
+      log("screen_share_interrupted", "Candidate stopped screen sharing track", true);
     };
 
     tracks[0].addEventListener("ended", handleScreenEnded);
@@ -159,7 +184,7 @@ export default function useProctoring(
     const handleVisibility = () => {
       if (document.hidden) {
         setWarningMessage("⚠️ Tab Switched! Staying away from the test window is flagged as a violation.");
-        log("tab_switch");
+        log("tab_switch", "Window or tab switched", true);
       }
     };
     const handleFullscreenChange = () => {
@@ -167,20 +192,20 @@ export default function useProctoring(
       setIsFullscreenActive(isFs);
       if (!isFs && !cleanedUpRef.current) {
         setWarningMessage("⚠️ Full-Screen Exited! Please return to full-screen mode immediately.");
-        log("fullscreen_exit");
+        log("fullscreen_exit", "Candidate exited browser fullscreen mode", true);
       }
     };
     const handleCopy = () => {
       setWarningMessage("⚠️ Copy Action Blocked & Flagged.");
-      log("copy_attempt");
+      log("copy_attempt", "Copy text action", true);
     };
     const handlePaste = () => {
-      log("paste_attempt");
+      log("paste_attempt", "Paste text action", true);
     };
     const handleContextMenu = (e) => {
       e.preventDefault();
       setWarningMessage("⚠️ Right-Click Disabled during assessment.");
-      log("right_click");
+      log("right_click", "Context menu / right click", true);
     };
 
     document.addEventListener("visibilitychange", handleVisibility);
@@ -215,7 +240,12 @@ export default function useProctoring(
         }
 
         let mediaStream = streamRef.current || initialStream;
-        if (!mediaStream) {
+        const isStreamActive =
+          mediaStream &&
+          mediaStream.active &&
+          mediaStream.getVideoTracks().some((t) => t.readyState === "live" && t.enabled);
+
+        if (!isStreamActive) {
           mediaStream = await navigator.mediaDevices.getUserMedia({
             video: { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { max: 30 } },
             audio: true,
@@ -236,28 +266,41 @@ export default function useProctoring(
           videoTracks[0].onended = () => {
             setCameraStatus("error");
             setWarningMessage("⚠️ Camera Disconnected! Check hardware connection.");
-            log("camera_unavailable", "Video track ended unexpectedly");
+            log("camera_unavailable", "Video track ended unexpectedly", false);
           };
         }
 
-        const video = document.createElement("video");
-        video.srcObject = mediaStream;
-        video.muted = true;
-        video.playsInline = true;
-        await video.play().catch(() => {});
-        videoRef.current = video;
+        if (!videoRef.current) {
+          const video = document.createElement("video");
+          video.muted = true;
+          video.playsInline = true;
+          videoRef.current = video;
+        }
+
+        if (videoRef.current.srcObject !== mediaStream) {
+          videoRef.current.srcObject = mediaStream;
+        }
+        await videoRef.current.play().catch(() => {});
         setCameraStatus("active");
 
         intervalRef.current = setInterval(async () => {
-          if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
+          if (
+            !videoRef.current ||
+            videoRef.current.paused ||
+            videoRef.current.ended ||
+            videoRef.current.readyState < 2 ||
+            videoRef.current.videoWidth === 0
+          ) {
+            return;
+          }
 
           // Detect frozen or static camera feed
           if (videoRef.current.currentTime === lastVideoTimeRef.current) {
             frozenCountRef.current += 1;
-            if (frozenCountRef.current >= 4) {
+            if (frozenCountRef.current >= 6) {
               setCameraStatus("warning");
               setWarningMessage("⚠️ Camera Stream Frozen or Interrupted! Check camera device.");
-              log("camera_frozen", "Video frame static for > 2 seconds");
+              log("camera_frozen", "Video frame static for > 3 seconds", false);
             }
           } else {
             frozenCountRef.current = 0;
@@ -273,34 +316,44 @@ export default function useProctoring(
             if (count === 0) {
               noFaceCountRef.current += 1;
               multiFaceCountRef.current = 0;
+              multiFaceViolationLoggedRef.current = false;
               gazeAwayCountRef.current = 0;
+              gazeAwayViolationLoggedRef.current = false;
 
-              if (noFaceCountRef.current >= 10) {
-                // 5.0s of prolonged absence
+              if (noFaceCountRef.current >= 12) {
+                // Continuous 6.0s absence beyond grace period
                 setCameraStatus("warning");
                 setWarningMessage("⚠️ Prolonged Face Absence! Return to camera immediately.");
-                log("prolonged_no_face", "Face absent for > 5 seconds");
-              } else if (noFaceCountRef.current >= 3) {
-                // 1.5s of absence
+                if (!noFaceViolationLoggedRef.current) {
+                  noFaceViolationLoggedRef.current = true;
+                  log("prolonged_no_face", "Candidate face absent continuously beyond 6s grace period", true);
+                }
+              } else {
+                // Grace period (0–6s): warning shown, 0 violations logged
                 setCameraStatus("warning");
                 setWarningMessage("⚠️ Candidate Face Absent! Please remain in front of the camera.");
-                log("no_face");
               }
             } else if (count > 1) {
               multiFaceCountRef.current += 1;
               noFaceCountRef.current = 0;
+              noFaceViolationLoggedRef.current = false;
               gazeAwayCountRef.current = 0;
+              gazeAwayViolationLoggedRef.current = false;
 
-              if (multiFaceCountRef.current >= 2) {
-                // 1.0s of multiple faces
+              if (multiFaceCountRef.current >= 3) {
                 setCameraStatus("warning");
                 setWarningMessage(`⚠️ Multiple (${count}) Faces Detected! Only registered candidate permitted.`);
-                log("multiple_faces", `${count} faces detected in camera frame`);
+                if (!multiFaceViolationLoggedRef.current) {
+                  multiFaceViolationLoggedRef.current = true;
+                  log("multiple_faces", `${count} faces detected in camera frame`, true);
+                }
               }
             } else {
-              // Exactly 1 face detected — verify gaze / head pose / off-screen positioning
+              // Exactly 1 face detected — face returned & verified
               noFaceCountRef.current = 0;
+              noFaceViolationLoggedRef.current = false;
               multiFaceCountRef.current = 0;
+              multiFaceViolationLoggedRef.current = false;
 
               const box = detections[0].box;
               const vWidth = videoRef.current.videoWidth || 320;
@@ -318,10 +371,14 @@ export default function useProctoring(
                   setGazeStatus("looking_away");
                   setCameraStatus("warning");
                   setWarningMessage("⚠️ Suspicious Gaze / Secondary Device Suspected! Please keep eyes on screen.");
-                  log("suspicious_gaze", "Candidate turned head or looked off-screen");
+                  if (!gazeAwayViolationLoggedRef.current) {
+                    gazeAwayViolationLoggedRef.current = true;
+                    log("suspicious_gaze", "Candidate turned head or looked off-screen", true);
+                  }
                 }
               } else {
                 gazeAwayCountRef.current = 0;
+                gazeAwayViolationLoggedRef.current = false;
                 setGazeStatus("centered");
                 setCameraStatus("active");
                 if (frozenCountRef.current === 0) {
@@ -336,7 +393,7 @@ export default function useProctoring(
       } catch (err) {
         setCameraStatus("error");
         setWarningMessage("⚠️ Camera access unavailable or denied. Proctoring system degraded.");
-        log("camera_unavailable", err.message);
+        log("camera_unavailable", err.message, false);
       }
     };
 
