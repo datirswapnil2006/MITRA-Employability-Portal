@@ -54,20 +54,6 @@ export default function StudentPsychometricAttempt() {
   const [initialCamStream, setInitialCamStream] = useState(null);
   const [initialScreenStream, setInitialScreenStream] = useState(null);
 
-  const handleAutoSubmitWithReason = useCallback(
-    async (exitReason = "Manual Submission", auditLogs = [], violationCount = 0) => {
-      if (!attemptId || submitting) return;
-      setSubmitting(true);
-      proctorState.stopAllProctoring();
-      try {
-        await submitPsychometricAttempt(attemptId, { exitReason, auditLogs, violationCount });
-      } catch (err) {
-        console.warn("Psychometric submit error:", err);
-      }
-    },
-    [attemptId, submitting, proctorState]
-  );
-
   // Continuous AI Proctoring & Live Camera Feed
   const proctorState = useProctoring(attemptId, {
     enabled: securityVerified && !loading && !error && !submitting && !terminated && Boolean(attemptId),
@@ -82,6 +68,20 @@ export default function StudentPsychometricAttempt() {
       );
     },
   });
+
+  const handleAutoSubmitWithReason = useCallback(
+    async (exitReason = "Manual Submission", auditLogs = [], violationCount = 0) => {
+      if (!attemptId || submitting) return;
+      setSubmitting(true);
+      proctorState.stopAllProctoring();
+      try {
+        await submitPsychometricAttempt(attemptId, { exitReason, auditLogs, violationCount });
+      } catch (err) {
+        console.warn("Psychometric submit error:", err);
+      }
+    },
+    [attemptId, submitting, proctorState]
+  );
 
   const {
     showExitModal,

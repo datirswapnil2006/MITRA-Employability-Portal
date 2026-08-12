@@ -353,6 +353,10 @@ export default function App() {
       />
 
       <Route
+        path="/student/attempt"
+        element={<Navigate to="/student/available-tests/official" replace />}
+      />
+      <Route
         path="/student/attempt/:testId"
         element={
           <ProtectedRoute role="student">
@@ -368,6 +372,8 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      {/* Catch-all Wildcard Route to prevent blank screens on invalid paths */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </Suspense>
   );

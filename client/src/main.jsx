@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
+import ErrorBoundary from "./components/common/ErrorBoundary";
 import "./index.css";
 
 // The bfcache (back/forward cache) can restore a page by resuming its exact
@@ -18,10 +19,12 @@ window.addEventListener("pageshow", (event) => {
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>
 );

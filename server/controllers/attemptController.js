@@ -27,11 +27,23 @@ const isExpired = (attempt) => new Date() > new Date(attempt.endsAt);
 // @route POST /api/tests/:id/start   (student)
 export const startAttempt = async (req, res) => {
   try {
-    const test = await Test.findById(req.params.testId).populate(
+    let test = await Test.findById(req.params.testId).populate(
       "sections.questions",
       "_id type questionText marks difficulty topic subtopic options languages sampleTestCases inputFormat outputFormat constraints"
     );
-    if (!test || !test.isEnabled) {
+
+    // Fallback: If req.params.testId is an attemptId instead of testId, resume that attempt
+    if (!test) {
+      const existing = await Attempt.findById(req.params.testId);
+      if (existing && String(existing.student) === String(req.user._id)) {
+        test = await Test.findById(existing.test).populate(
+          "sections.questions",
+          "_id type questionText marks difficulty topic subtopic options languages sampleTestCases inputFormat outputFormat constraints"
+        );
+      }
+    }
+
+    if (!test) {
       return res.status(404).json({ message: "Test not available" });
     }
 
