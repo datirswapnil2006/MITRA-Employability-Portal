@@ -157,8 +157,9 @@ export default function StudentPsychometricAttempt() {
 
   const handleSelectOption = async (qId, optionIdx) => {
     setAnswers((prev) => ({ ...prev, [qId]: optionIdx }));
-    setSaveStatus("saving");
+    if (!attemptId) return;
 
+    setSaveStatus("saving");
     try {
       await savePsychometricAnswer(attemptId, {
         questionId: qId,

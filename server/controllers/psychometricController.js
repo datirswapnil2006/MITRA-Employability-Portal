@@ -742,9 +742,9 @@ export const savePsychometricAnswer = async (req, res) => {
 
     const answerPayload = {
       questionId: String(question._id),
-      type: question.type,
-      traitKey: question.traitKey,
-      isReverseScored: question.isReverseScored,
+      type: question.type || "likert",
+      traitKey: question.traitKey || question.category || "general",
+      isReverseScored: Boolean(question.isReverseScored),
       selectedOptionIndex,
       selectedOptionText: optionText || "",
       scoreAwarded,

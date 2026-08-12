@@ -140,6 +140,7 @@ export default function AttemptPage() {
     setAnswers((prev) => ({ ...prev, [questionId]: { ...prev[questionId], ...patch } }));
     clearTimeout(saveTimers.current[questionId]);
     saveTimers.current[questionId] = setTimeout(() => {
+      if (!attemptId) return;
       const merged = { ...answers[questionId], ...patch };
       saveAnswer(attemptId, questionId, merged).catch(() => {});
     }, 600);

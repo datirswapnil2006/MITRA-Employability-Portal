@@ -39,6 +39,7 @@ export default function useProctoring(
   const multiFaceViolationLoggedRef = useRef(false);
   const gazeAwayCountRef = useRef(0);
   const gazeAwayViolationLoggedRef = useRef(false);
+  const isSelectingScreenShareRef = useRef(false);
   const lastVideoTimeRef = useRef(0);
   const frozenCountRef = useRef(0);
 
@@ -182,6 +183,7 @@ export default function useProctoring(
     if (!enabled) return;
 
     const handleVisibility = () => {
+      if (isSelectingScreenShareRef.current) return;
       if (document.hidden) {
         setWarningMessage("⚠️ Tab Switched! Staying away from the test window is flagged as a violation.");
         log("tab_switch", "Window or tab switched", true);
@@ -427,6 +429,7 @@ export default function useProctoring(
 
   // User gesture action to resume screen sharing
   const resumeScreenShare = useCallback(async () => {
+    isSelectingScreenShareRef.current = true;
     try {
       const newStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
       screenStreamRef.current = newStream;
@@ -437,6 +440,10 @@ export default function useProctoring(
     } catch (err) {
       setWarningMessage("⚠️ Screen sharing permission was denied or cancelled.");
       throw err;
+    } finally {
+      setTimeout(() => {
+        isSelectingScreenShareRef.current = false;
+      }, 1000);
     }
   }, []);
 
