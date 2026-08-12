@@ -76,11 +76,14 @@ export default function StudentPsychometricAttempt() {
       proctorState.stopAllProctoring();
       try {
         await submitPsychometricAttempt(attemptId, { exitReason, auditLogs, violationCount });
+        navigate(`/student/psychometric/report/${attemptId}`);
       } catch (err) {
         console.warn("Psychometric submit error:", err);
+        alert(err.response?.data?.message || "Could not submit psychometric assessment");
+        setSubmitting(false);
       }
     },
-    [attemptId, submitting, proctorState]
+    [attemptId, submitting, proctorState, navigate]
   );
 
   const {
