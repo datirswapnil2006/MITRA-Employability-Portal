@@ -4,7 +4,7 @@ import { BaseProvider } from "./BaseProvider.js";
 export class GeminiProvider extends BaseProvider {
   constructor() {
     super("gemini");
-    this.models = ["gemini-1.5-flash", "gemini-2.0-flash"];
+    this.models = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro"];
   }
 
   isAvailable() {
