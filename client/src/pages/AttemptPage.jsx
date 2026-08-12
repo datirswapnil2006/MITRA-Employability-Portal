@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { startAttempt, saveAnswer, runSample, submitAttempt } from "../api/tests";
 import useProctoring from "../hooks/useProctoring";
+import useAssessmentBehavior from "../hooks/useAssessmentBehavior";
 import LiveProctorCamera from "../components/test/LiveProctorCamera";
 import AssessmentExitConfirmModal from "../components/test/AssessmentExitConfirmModal";
 import PreTestSecurityCheckModal from "../components/test/PreTestSecurityCheckModal";
