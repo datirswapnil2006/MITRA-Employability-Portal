@@ -893,16 +893,28 @@ export default function PsychometricWizardModal({
                           }}
                         />
 
-                        {q.options && q.options.length > 0 && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                            {q.options.map((opt, oIdx) => (
-                              <div key={oIdx} className="bg-slate-50 border border-line rounded-lg p-2 text-[11px] flex justify-between">
-                                <span>{typeof opt === "string" ? opt : opt.optionText}</span>
-                                <span className="font-mono text-accent font-bold">+{typeof opt === "string" ? oIdx + 1 : opt.score}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        {(() => {
+                          const displayOptions = (q.options && q.options.length > 0)
+                            ? q.options
+                            : [
+                                { optionText: "Strongly Disagree", score: q.isReverseScored ? 5 : 1 },
+                                { optionText: "Disagree", score: q.isReverseScored ? 4 : 2 },
+                                { optionText: "Neutral", score: 3 },
+                                { optionText: "Agree", score: q.isReverseScored ? 2 : 4 },
+                                { optionText: "Strongly Agree", score: q.isReverseScored ? 1 : 5 },
+                              ];
+
+                          return (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-1.5 pt-1">
+                              {displayOptions.map((opt, oIdx) => (
+                                <div key={oIdx} className="bg-slate-50 border border-line rounded-lg p-2 text-[11px] flex justify-between items-center">
+                                  <span className="truncate font-medium">{typeof opt === "string" ? opt : opt.optionText}</span>
+                                  <span className="font-mono text-accent font-bold pl-1">+{typeof opt === "string" ? oIdx + 1 : opt.score}</span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}

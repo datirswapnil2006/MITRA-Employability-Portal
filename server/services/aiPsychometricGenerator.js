@@ -275,7 +275,7 @@ export const generatePsychometricDrafts = async ({
       }
       d.isReverseScored = Boolean(d.isReverseScored);
       d.situationContext = d.situationContext || "";
-      if (Array.isArray(d.options)) {
+      if (Array.isArray(d.options) && d.options.length > 0) {
         d.options = d.options.map((opt, idx) => {
           if (typeof opt === "string") {
             return {
@@ -298,7 +298,14 @@ export const generatePsychometricDrafts = async ({
           };
         });
       } else {
-        d.options = [];
+        const isRev = Boolean(d.isReverseScored);
+        d.options = [
+          { optionText: "Strongly Disagree", traitKey: d.traitKey || "", score: isRev ? 5 : 1 },
+          { optionText: "Disagree", traitKey: d.traitKey || "", score: isRev ? 4 : 2 },
+          { optionText: "Neutral", traitKey: d.traitKey || "", score: 3 },
+          { optionText: "Agree", traitKey: d.traitKey || "", score: isRev ? 2 : 4 },
+          { optionText: "Strongly Agree", traitKey: d.traitKey || "", score: isRev ? 1 : 5 },
+        ];
       }
       return true;
     });
