@@ -715,7 +715,6 @@ const computeItemScore = (q, selectedOptionIndex, optionObj) => {
   return 3;
 };
 
-// @route PUT /api/psychometric/attempt/:attemptId/answer   (student) - Real-time Auto Save
 export const savePsychometricAnswer = async (req, res) => {
   try {
     const attempt = await PsychometricAttempt.findById(req.params.attemptId);
@@ -724,7 +723,7 @@ export const savePsychometricAnswer = async (req, res) => {
     }
 
     if (attempt.status === "submitted") {
-      return res.status(409).json({ message: "Assessment already submitted" });
+      return res.json({ saved: true, alreadySubmitted: true });
     }
 
     const { questionId, selectedOptionIndex, timeSpentSeconds } = req.body;
@@ -735,7 +734,10 @@ export const savePsychometricAnswer = async (req, res) => {
     if (!question) return res.status(404).json({ message: "Question not found in assessment" });
 
     const selectedOptionObj = question.options?.[selectedOptionIndex];
-    const optionText = selectedOptionObj?.optionText || (question.type === "likert" ? ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"][selectedOptionIndex] : "");
+    const optionText =
+      selectedOptionObj?.optionText ||
+      (typeof selectedOptionObj === "string" ? selectedOptionObj : "") ||
+      (question.type === "likert" ? ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"][selectedOptionIndex] : "");
     const scoreAwarded = computeItemScore(question, selectedOptionIndex, selectedOptionObj);
 
     const existingIdx = attempt.answers.findIndex((a) => String(a.questionId) === String(questionId));
@@ -757,7 +759,19 @@ export const savePsychometricAnswer = async (req, res) => {
       attempt.answers.push(answerPayload);
     }
 
-    await attempt.save();
+    try {
+      await attempt.save();
+    } catch (saveErr) {
+      // Retry once if Mongoose version conflict occurs
+      const freshAttempt = await PsychometricAttempt.findById(req.params.attemptId);
+      if (freshAttempt && freshAttempt.status !== "submitted") {
+        const idx = freshAttempt.answers.findIndex((a) => String(a.questionId) === String(questionId));
+        if (idx >= 0) freshAttempt.answers[idx] = answerPayload;
+        else freshAttempt.answers.push(answerPayload);
+        await freshAttempt.save();
+      }
+    }
+
     res.json({ saved: true });
   } catch (err) {
     res.status(500).json({ message: "Failed to save response", error: err.message });
@@ -785,7 +799,7 @@ export const submitPsychometricAttempt = async (req, res) => {
     attempt.careerRecommendations = evaluation.careerRecommendations;
 
     const traitScoresMap = new Map();
-    evaluation.traitBreakdown.forEach((t) => traitScoresMap.set(t.key, t.percentage));
+    (evaluation.traitBreakdown || []).forEach((t) => traitScoresMap.set(t.key, t.percentage));
     attempt.traitScores = traitScoresMap;
 
     const { exitReason, violationCount, auditLogs } = req.body || {};
@@ -796,7 +810,7 @@ export const submitPsychometricAttempt = async (req, res) => {
     }
 
     attempt.status = "submitted";
-    attempt.completedAt = new Date();
+    if (!attempt.completedAt) attempt.completedAt = new Date();
 
     await attempt.save();
 

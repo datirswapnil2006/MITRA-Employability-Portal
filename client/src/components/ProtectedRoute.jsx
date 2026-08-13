@@ -29,10 +29,14 @@ export default function ProtectedRoute({ role, children }) {
           setStatus("valid");
         }
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
-        logout();
-        setStatus("invalid");
+        if (err.response?.status === 401) {
+          logout();
+          setStatus("invalid");
+        } else {
+          setStatus(user ? "valid" : "invalid");
+        }
       });
 
     return () => {

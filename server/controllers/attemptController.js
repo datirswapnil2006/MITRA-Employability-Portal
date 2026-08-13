@@ -182,7 +182,30 @@ export const saveAnswer = async (req, res) => {
       });
     }
 
-    await attempt.save();
+    try {
+      await attempt.save();
+    } catch (saveErr) {
+      // Retry once if Mongoose version conflict occurs
+      const freshAttempt = await Attempt.findById(req.params.attemptId);
+      if (freshAttempt && freshAttempt.status !== "submitted") {
+        const idx = freshAttempt.answers.findIndex((a) => String(a.question) === req.params.questionId);
+        if (idx >= 0) {
+          if (selectedOptionIndex !== undefined) freshAttempt.answers[idx].selectedOptionIndex = selectedOptionIndex;
+          if (code !== undefined) freshAttempt.answers[idx].code = code;
+          if (language !== undefined) freshAttempt.answers[idx].language = language;
+        } else {
+          freshAttempt.answers.push({
+            question: question._id,
+            type: question.type,
+            selectedOptionIndex: selectedOptionIndex ?? null,
+            code: code || "",
+            language: language || null,
+          });
+        }
+        await freshAttempt.save();
+      }
+    }
+
     res.json({ saved: true });
   } catch (err) {
     res.status(500).json({ message: "Failed to save answer", error: err.message });

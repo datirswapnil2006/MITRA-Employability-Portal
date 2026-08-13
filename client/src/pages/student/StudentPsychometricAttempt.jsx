@@ -62,9 +62,9 @@ export default function StudentPsychometricAttempt() {
     onAutoSubmit: (result) => {
       setTerminated(result || true);
       handleAutoSubmitWithReason(
-        "Repeated confirmed proctoring violations were detected during the assessment.",
+        result?.exitReason || "Repeated confirmed proctoring violations were detected during the assessment.",
         result?.auditLogs || [],
-        3
+        result?.violationCount || 3
       );
     },
   });
@@ -80,6 +80,7 @@ export default function StudentPsychometricAttempt() {
       } catch (err) {
         console.warn("Psychometric submit error:", err);
         alert(err.response?.data?.message || "Could not submit psychometric assessment");
+      } finally {
         setSubmitting(false);
       }
     },
@@ -503,7 +504,7 @@ export default function StudentPsychometricAttempt() {
       <PreTestSecurityCheckModal
         isOpen={showPreTestModal && !securityVerified}
         testTitle={test?.title || "Psychometric Profiling Assessment"}
-        requireScreenShare={Boolean(test?.navigationPolicySettings?.requireScreenShare)}
+        requireScreenShare={test?.navigationPolicySettings?.requireScreenShare !== false}
         onStartTest={({ cameraStream, screenStream }) => {
           setInitialCamStream(cameraStream);
           setInitialScreenStream(screenStream);

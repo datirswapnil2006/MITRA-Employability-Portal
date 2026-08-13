@@ -47,12 +47,24 @@ export default function AttemptPage() {
   const [initialCamStream, setInitialCamStream] = useState(null);
   const [initialScreenStream, setInitialScreenStream] = useState(null);
 
+  const answersRef = useRef(answers);
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
   // Proctoring active during attempt once pre-test verification passes
   const proctorState = useProctoring(attemptId, {
     enabled: securityVerified && !loading && !error && !submitting && !terminated,
     initialStream: initialCamStream,
     initialScreenStream,
-    onAutoSubmit: (result) => setTerminated(result),
+    onAutoSubmit: (result) => {
+      setTerminated(result || true);
+      handleAutoSubmitWithReason(
+        result?.exitReason || "Proctoring violation limit reached",
+        result?.auditLogs || [],
+        result?.violationCount || 3
+      );
+    },
   });
 
   const handleSubmit = useCallback(async (exitReason = "Manual Submission") => {
@@ -68,7 +80,7 @@ export default function AttemptPage() {
     }
   }, [attemptId, submitting, navigate, proctorState]);
 
-  const handleAutoSubmitWithReason = useCallback(async (exitReason, auditLogs, violationCount) => {
+  const handleAutoSubmitWithReason = useCallback(async (exitReason, auditLogs = [], violationCount = 0) => {
     if (!attemptId || submitting) return;
     setSubmitting(true);
     proctorState.stopAllProctoring();
@@ -92,8 +104,8 @@ export default function AttemptPage() {
     enabled: !loading && !error && !submitting && !terminated,
     onSaveAnswers: async () => {
       const q = questions[current];
-      if (q && answers[q._id]) {
-        await saveAnswer(attemptId, q._id, answers[q._id]).catch(() => {});
+      if (q && answersRef.current[q._id]) {
+        await saveAnswer(attemptId, q._id, answersRef.current[q._id]).catch(() => {});
       }
     },
     onSubmitAssessment: handleAutoSubmitWithReason,
@@ -116,6 +128,7 @@ export default function AttemptPage() {
           };
         });
         setAnswers(map);
+        answersRef.current = map;
         const endsAt = new Date(data.endsAt).getTime();
         const remaining = Math.max(0, Math.floor((endsAt - Date.now()) / 1000));
         setRemainingSec(remaining);
@@ -137,13 +150,22 @@ export default function AttemptPage() {
   }, [remainingSec, loading, error, terminated, handleSubmit]);
 
   const scheduleSave = (questionId, patch) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: { ...prev[questionId], ...patch } }));
+    setAnswers((prev) => {
+      const updated = { ...prev, [questionId]: { ...prev[questionId], ...patch } };
+      answersRef.current = updated;
+      return updated;
+    });
     clearTimeout(saveTimers.current[questionId]);
     saveTimers.current[questionId] = setTimeout(() => {
       if (!attemptId) return;
-      const merged = { ...answers[questionId], ...patch };
-      saveAnswer(attemptId, questionId, merged).catch(() => {});
-    }, 600);
+      const merged = { ...(answersRef.current[questionId] || {}), ...patch };
+      saveAnswer(attemptId, questionId, merged).catch((err) => {
+        console.warn("Auto-save retry:", err);
+        setTimeout(() => {
+          saveAnswer(attemptId, questionId, merged).catch(() => {});
+        }, 800);
+      });
+    }, 500);
   };
 
   const handleRunSample = async (question) => {
@@ -369,7 +391,7 @@ export default function AttemptPage() {
       <PreTestSecurityCheckModal
         isOpen={showPreTestModal && !securityVerified}
         testTitle={test?.title || "Official Placement Assessment"}
-        requireScreenShare={Boolean(test?.navigationPolicySettings?.requireScreenShare)}
+        requireScreenShare={test?.navigationPolicySettings?.requireScreenShare !== false}
         onStartTest={({ cameraStream, screenStream }) => {
           setInitialCamStream(cameraStream);
           setInitialScreenStream(screenStream);

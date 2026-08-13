@@ -1,8 +1,10 @@
 import Attempt from "../models/Attempt.js";
 import PsychometricAttempt from "../models/PsychometricAttempt.js";
+import PsychometricTest from "../models/PsychometricTest.js";
 import ProctorEvent, { getProctoringStatus } from "../models/ProctorEvent.js";
 import { DEFAULT_SEVERITY, EVENT_TYPES, SEVERITY_WEIGHT, AUTO_SUBMIT_THRESHOLD, EVENT_LABEL } from "../models/ProctorEvent.js";
 import { gradeAttempt } from "./attemptController.js";
+import { evaluatePsychometricAttempt } from "../services/psychometricScoringEngine.js";
 
 // @route POST /api/proctor/:attemptId/event   (student)
 // Fire-and-forget logging from the attempt page. Never blocks the test —
@@ -39,7 +41,9 @@ export const logEvent = async (req, res) => {
     });
 
     // Already submitted (e.g. a late event after normal submission) — nothing more to do.
-    if (attempt.status !== "in-progress") {
+    if (attempt.status !== "submitted") {
+      // Allow force submit evaluation below if in-progress
+    } else {
       return res.status(201).json({ logged: true, autoSubmitted: false });
     }
 
@@ -55,6 +59,20 @@ export const logEvent = async (req, res) => {
       attempt.exitReason = "Auto-submitted due to proctoring violations";
 
       if (isPsychometric) {
+        const test = await PsychometricTest.findById(attempt.psychometricTest);
+        if (test) {
+          try {
+            const evaluation = await evaluatePsychometricAttempt(attempt, test);
+            attempt.traitBreakdown = evaluation.traitBreakdown;
+            attempt.personalityProfile = evaluation.personalityProfile;
+            attempt.strengths = evaluation.strengths;
+            attempt.developmentAreas = evaluation.developmentAreas;
+            attempt.workplaceStyle = evaluation.workplaceStyle;
+            attempt.careerRecommendations = evaluation.careerRecommendations;
+          } catch (e) {
+            console.warn("Psychometric evaluation fallback on proctor auto-submit:", e.message);
+          }
+        }
         attempt.status = "submitted";
         attempt.completedAt = new Date();
         await attempt.save();

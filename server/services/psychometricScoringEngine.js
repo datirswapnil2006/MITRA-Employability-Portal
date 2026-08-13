@@ -65,19 +65,20 @@ export const evaluatePsychometricAttempt = async (attempt, test) => {
 
   // Process answers
   answers.forEach((ans) => {
-    const key = ans.traitKey;
+    const key = ans?.traitKey || "general";
     let entry = traitMap.get(key);
 
     if (!entry) {
+      const safeKey = String(key || "general");
       entry = {
-        key,
-        name: key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+        key: safeKey,
+        name: safeKey.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
         description: "",
         rawScore: 0,
         maxScore: 0,
         count: 0,
       };
-      traitMap.set(key, entry);
+      traitMap.set(safeKey, entry);
     }
 
     entry.rawScore += ans.scoreAwarded || 0;

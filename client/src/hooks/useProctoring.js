@@ -30,6 +30,10 @@ export default function useProctoring(
   const cleanedUpRef = useRef(false);
 
   const violationCountRef = useRef(0);
+  const copyViolationCountRef = useRef(0);
+  const tabSwitchViolationCountRef = useRef(0);
+  const lastCopyTimeRef = useRef(0);
+  const lastTabSwitchTimeRef = useRef(0);
   const auditLogsRef = useRef([]);
 
   // Consecutive trackers for robust debouncing & absence session statefulness
@@ -159,6 +163,79 @@ export default function useProctoring(
     [attemptId, enabled, onAutoSubmit, stopAllProctoring]
   );
 
+  // Dedicated 1st warning / 2nd auto-submit rule for copy action
+  const triggerCopyViolation = useCallback(
+    (actionName = "Copy Action") => {
+      if (terminatedRef.current || !enabled || !attemptId) return;
+      const now = Date.now();
+      if (now - lastCopyTimeRef.current < 1500) return; // Deduplicate physical copy action
+      lastCopyTimeRef.current = now;
+
+      copyViolationCountRef.current += 1;
+      const count = copyViolationCountRef.current;
+
+      auditLogsRef.current.push({
+        action: "copy_attempt",
+        details: `${actionName} (Attempt ${count}/2)`,
+        timestamp: new Date().toISOString(),
+      });
+
+      logProctorEvent(attemptId, "copy_attempt", `${actionName} - Attempt ${count}/2`).catch(() => {});
+
+      if (count === 1) {
+        setWarningMessage("⚠️ Copy Action Flagged (Violation 1/1). Warning: A second copy attempt will automatically submit your assessment.");
+        setViolationCount((prev) => Math.max(prev, 1));
+      } else if (count >= 2) {
+        setWarningMessage("⚠️ Second Copy Attempt Detected! Assessment is being automatically submitted.");
+        setViolationCount(2);
+        terminatedRef.current = true;
+        stopAllProctoring();
+        onAutoSubmit?.({
+          autoSubmitted: true,
+          exitReason: "Automatic submission: Maximum allowed copy violations (2/2) reached.",
+          violationCount: 2,
+          auditLogs: auditLogsRef.current,
+        });
+      }
+    },
+    [attemptId, enabled, onAutoSubmit, stopAllProctoring]
+  );
+
+  // Dedicated 1st warning / 2nd auto-submit rule for tab switch
+  const triggerTabSwitchViolation = useCallback(() => {
+    if (terminatedRef.current || !enabled || !attemptId || isSelectingScreenShareRef.current) return;
+    const now = Date.now();
+    if (now - lastTabSwitchTimeRef.current < 1500) return; // Deduplicate physical tab switch action
+    lastTabSwitchTimeRef.current = now;
+
+    tabSwitchViolationCountRef.current += 1;
+    const count = tabSwitchViolationCountRef.current;
+
+    auditLogsRef.current.push({
+      action: "tab_switch",
+      details: `Tab or Window Switched (Attempt ${count}/2)`,
+      timestamp: new Date().toISOString(),
+    });
+
+    logProctorEvent(attemptId, "tab_switch", `Tab Switched - Attempt ${count}/2`).catch(() => {});
+
+    if (count === 1) {
+      setWarningMessage("⚠️ Tab Switched! (Violation 1/1). Warning: A second tab switch will automatically submit your assessment.");
+      setViolationCount((prev) => Math.max(prev, 1));
+    } else if (count >= 2) {
+      setWarningMessage("⚠️ Second Tab Switch Detected! Assessment is being automatically submitted.");
+      setViolationCount(2);
+      terminatedRef.current = true;
+      stopAllProctoring();
+      onAutoSubmit?.({
+        autoSubmitted: true,
+        exitReason: "Automatic submission: Maximum allowed tab switch violations (2/2) reached.",
+        violationCount: 2,
+        auditLogs: auditLogsRef.current,
+      });
+    }
+  }, [attemptId, enabled, onAutoSubmit, stopAllProctoring]);
+
   // Screen sharing track ended listener
   useEffect(() => {
     if (!enabled || !screenStream) return;
@@ -183,10 +260,8 @@ export default function useProctoring(
     if (!enabled) return;
 
     const handleVisibility = () => {
-      if (isSelectingScreenShareRef.current) return;
       if (document.hidden) {
-        setWarningMessage("⚠️ Tab Switched! Staying away from the test window is flagged as a violation.");
-        log("tab_switch", "Window or tab switched", true);
+        triggerTabSwitchViolation();
       }
     };
     const handleFullscreenChange = () => {
@@ -198,34 +273,44 @@ export default function useProctoring(
       }
     };
     const handleCopy = () => {
-      setWarningMessage("⚠️ Copy Action Blocked & Flagged.");
-      log("copy_attempt", "Copy text action", true);
+      triggerCopyViolation("Copy Text Action");
+    };
+    const handleCut = () => {
+      triggerCopyViolation("Cut Text Action");
     };
     const handlePaste = () => {
       log("paste_attempt", "Paste text action", true);
     };
     const handleContextMenu = (e) => {
       e.preventDefault();
-      setWarningMessage("⚠️ Right-Click Disabled during assessment.");
-      log("right_click", "Context menu / right click", true);
+      setWarningMessage("⚠️ Right-Click Context Menu Disabled during assessment.");
+      log("right_click", "Context menu / right click", false);
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === "PrintScreen" || (e.ctrlKey && e.key === "p")) {
+        setWarningMessage("⚠️ Print Screen / Print Shortcut Blocked.");
+        log("right_click", "Screenshot or Print shortcut key pressed", false);
+      }
     };
 
     document.addEventListener("visibilitychange", handleVisibility);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     document.addEventListener("copy", handleCopy);
-    document.addEventListener("cut", handleCopy);
+    document.addEventListener("cut", handleCut);
     document.addEventListener("contextmenu", handleContextMenu);
     document.addEventListener("paste", handlePaste);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       document.removeEventListener("copy", handleCopy);
-      document.removeEventListener("cut", handleCopy);
+      document.removeEventListener("cut", handleCut);
       document.removeEventListener("contextmenu", handleContextMenu);
       document.removeEventListener("paste", handlePaste);
+      document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [enabled, attemptId, log]);
+  }, [enabled, attemptId, log, triggerCopyViolation, triggerTabSwitchViolation]);
 
   // Webcam stream & continuous sub-second face detection loop
   useEffect(() => {

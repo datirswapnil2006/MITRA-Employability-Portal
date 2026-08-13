@@ -44,13 +44,13 @@ export default function LiveProctorCamera({
   return (
     <>
       {/* Non-Blocking Top Center Action & Warning Banner Bar */}
-      <div className="fixed top-16 inset-x-0 mx-auto max-w-lg z-50 pointer-events-none px-4 flex flex-col items-center gap-2 animate-fadeIn">
+      <div className="fixed top-16 inset-x-0 mx-auto max-w-lg z-40 pointer-events-none px-4 flex flex-col items-center gap-2 animate-fadeIn">
         {/* Fullscreen Lost Action Bar */}
         {!isFullscreenActive && onReEnterFullscreen && (
           <div className="pointer-events-auto w-full bg-rose-600 text-white px-4 py-2.5 rounded-2xl shadow-2xl border border-rose-500 flex items-center justify-between gap-3 text-xs font-bold">
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5 min-w-0">
               <ShieldAlert size={16} className="shrink-0 text-rose-200" />
-              <span>⚠️ Fullscreen Lost — Return to test window immediately</span>
+              <span className="truncate">⚠️ Fullscreen Lost — Return to test window immediately</span>
             </span>
             <button
               type="button"
@@ -65,9 +65,9 @@ export default function LiveProctorCamera({
         {/* Screen Share Interrupted Action Bar */}
         {!isScreenShareActive && onResumeScreenShare && (
           <div className="pointer-events-auto w-full bg-amber-600 text-white px-4 py-2.5 rounded-2xl shadow-2xl border border-amber-500 flex items-center justify-between gap-3 text-xs font-bold">
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5 min-w-0">
               <AlertTriangle size={16} className="shrink-0 text-amber-200" />
-              <span>⚠️ Screen Share Interrupted</span>
+              <span className="truncate">⚠️ Screen Share Interrupted</span>
             </span>
             <button
               type="button"
@@ -81,10 +81,10 @@ export default function LiveProctorCamera({
 
         {/* Floating Warning Toast Banner if active */}
         {warningMessage && isFullscreenActive && isScreenShareActive && (
-          <div className="pointer-events-auto w-full bg-amber-500 text-white px-4 py-2 rounded-2xl shadow-xl border border-amber-400 flex items-center justify-between gap-3 text-xs font-semibold">
+          <div className="pointer-events-auto w-full bg-amber-500 text-white px-4 py-2.5 rounded-2xl shadow-xl border border-amber-400 flex items-center justify-between gap-3 text-xs font-semibold">
             <div className="flex items-center gap-2 min-w-0">
               <AlertTriangle size={16} className="shrink-0 text-amber-100" />
-              <span className="truncate">{warningMessage}</span>
+              <span className="text-xs font-semibold leading-snug">{warningMessage}</span>
             </div>
             {onDismissWarning && (
               <button
